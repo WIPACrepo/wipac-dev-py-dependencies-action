@@ -29,7 +29,7 @@ fi
 # move script
 TEMPDIR=$(mktemp -d)
 trap 'rm -rf "$TEMPDIR"' EXIT
-cp $GITHUB_ACTION_PATH/run_in_container/pip-freeze-tree.sh $TEMPDIR
+cp $GITHUB_ACTION_PATH/generate_dep_logs/pip-freeze-tree.sh $TEMPDIR
 chmod +x $TEMPDIR/pip-freeze-tree.sh
 
 
