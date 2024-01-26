@@ -13,7 +13,7 @@ set -e
 if [[ $(grep -o "USER" ./Dockerfile) ]]; then
     podman --version
     # 'uid' & 'gid' were added in https://github.com/containers/podman/releases/tag/v4.3.0
-    $GITHUB_ACTION_PATH/install-podman.sh
+    $GITHUB_ACTION_PATH/utils/install-podman.sh
     podman --version
     USE_PODMAN='--podman'
 fi

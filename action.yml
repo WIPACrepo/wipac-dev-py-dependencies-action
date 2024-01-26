@@ -70,13 +70,13 @@ runs:
         # remove any old ones, then regenerate only what's needed
         rm dependencies*.log || true
 
-        export PACKAGE_NAME=$(python3 ${{ github.action_path }}/get_package_name.py setup.cfg)
+        export PACKAGE_NAME=$(python3 ${{ github.action_path }}/utils/get_package_name.py setup.cfg)
         export GITHUB_ACTION_PATH=${{ github.action_path }}
         export ACTION_REPOSITORY="WIPACrepo/wipac-dev-py-setup-action"
 
         # get python3 version (max)
         SEMVAR_RANGE=$(grep "python_requires =" -h setup.cfg | awk -F 'python_requires =' '{print $2}')
-        export PACKAGE_MAX_PYTHON_VERSION=$(python3 ${{ github.action_path }}/max_python3.py "$SEMVAR_RANGE")
+        export PACKAGE_MAX_PYTHON_VERSION=$(python3 ${{ github.action_path }}/utils/max_python3.py "$SEMVAR_RANGE")
 
         # Build
         if [ -f ./Dockerfile ]; then
