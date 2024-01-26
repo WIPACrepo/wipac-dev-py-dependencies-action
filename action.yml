@@ -82,10 +82,10 @@ runs:
         if [ -f ./Dockerfile ]; then
           # from Dockerfile(s)...
           export DOCKERFILE_NAMETAGS=${{ inputs.dockerfile_nametags }}
-          ${{ github.action_path }}/all-dep-logs-from-dockerfiles.sh
+          ${{ github.action_path }}/generate_dep_logs/gen-deps-from-repo-dockerfiles.sh
         else
           # from setup.cfg...
-          ${{ github.action_path }}/all-dep-logs-from-setup-cfg.sh
+          ${{ github.action_path }}/generate_dep_logs/gen-deps-from-repo-python-pkg.sh
         fi
 
         # Commit

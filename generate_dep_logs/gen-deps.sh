@@ -9,7 +9,7 @@ set -e
 ########################################################################
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
-    echo "Usage: dep-log-from-dockerfile.sh DOCKERFILE DEPS_LOG_FILE SUBTITLE [IMAGE_NAMETAG] [--podman]"
+    echo "Usage: gen-deps.sh DOCKERFILE DEPS_LOG_FILE SUBTITLE [IMAGE_NAMETAG] [--podman]"
     exit 1
 fi
 if [ ! -f "$1" ]; then

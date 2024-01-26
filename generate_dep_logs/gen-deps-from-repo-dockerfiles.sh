@@ -25,7 +25,7 @@ for fname_nametag in $DOCKERFILE_NAMETAGS; do
     docker images
     fname=$(echo $fname_nametag | cut -d ':' -f1)
     nametag=$(echo $fname_nametag | cut -d ':' -f2-)
-    $GITHUB_ACTION_PATH/generate_dep_logs/dep-log-from-dockerfile.sh \
+    $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps.sh \
         $fname \
         "dependencies-from-$(basename $fname).log" \
         "within the container built from '$fname'" \
@@ -39,7 +39,7 @@ for fname in ./Dockerfile*; do
     fi
     echo $fname
     docker images
-    $GITHUB_ACTION_PATH/generate_dep_logs/dep-log-from-dockerfile.sh \
+    $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps.sh \
         $fname \
         "dependencies-from-$(basename $fname).log" \
         "within the container built from '$fname'" \

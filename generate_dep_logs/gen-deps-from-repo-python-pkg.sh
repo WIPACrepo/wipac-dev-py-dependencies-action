@@ -39,7 +39,7 @@ RUN pip install --no-cache-dir $pip_install_pkg
 CMD []
 EOF
 
-  $GITHUB_ACTION_PATH/generate_dep_logs/dep-log-from-dockerfile.sh \
+  $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps.sh \
     $(realpath $dockerfile) \
     $DEPS_LOG_FILE \
     "from \`pip install $pip_install_pkg\`" \
