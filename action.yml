@@ -88,6 +88,7 @@ runs:
         )
         print(f"{max(all_matches)[0]}.{max(all_matches)[1]}")
         ')
+        echo $PACKAGE_MAX_PYTHON_VERSION
 
         # Build
         if [ -f ./Dockerfile ]; then
