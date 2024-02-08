@@ -75,15 +75,15 @@ runs:
         export ACTION_REPOSITORY="WIPACrepo/wipac-dev-py-setup-action"
 
         # get python3 version (max)
-        export SEMVAR_RANGE=$(grep "python_requires =" -h setup.cfg | awk -F 'python_requires =' '{print $2}')
-        echo $SEMVAR_RANGE
+        export semver_RANGE=$(grep "python_requires =" -h setup.cfg | awk -F 'python_requires =' '{print $2}')
+        echo $semver_RANGE
         export PACKAGE_MAX_PYTHON_VERSION=$(python -c '
         import os
-        from wipac_dev_tools import semvar_parser_tools
-        top_python = semvar_parser_tools.get_latest_py3_release()
-        all_matches = semvar_parser_tools.list_all_majmin_versions(
+        from wipac_dev_tools import semver_parser_tools
+        top_python = semver_parser_tools.get_latest_py3_release()
+        all_matches = semver_parser_tools.list_all_majmin_versions(
           major=top_python[0],
-          semvar_range=os.environ["SEMVAR_RANGE"],
+          semver_range=os.environ["semver_RANGE"],
           max_minor=top_python[1],
         )
         print(f"{max(all_matches)[0]}.{max(all_matches)[1]}")
