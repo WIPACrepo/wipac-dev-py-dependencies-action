@@ -74,16 +74,37 @@ runs:
         export GITHUB_ACTION_PATH=${{ github.action_path }}
         export ACTION_REPOSITORY="WIPACrepo/wipac-dev-py-setup-action"
 
-        # get python3 version (max)
-        export semver_RANGE=$(grep "python_requires =" -h setup.cfg | awk -F 'python_requires =' '{print $2}')
-        echo $semver_RANGE
+        # get python3 version (max) -- copied from https://github.com/WIPACrepo/wipac-dev-py-versions-action/blob/main/action.yml
         export PACKAGE_MAX_PYTHON_VERSION=$(python -c '
-        import os
+        import os, re
         from wipac_dev_tools import semver_parser_tools
+        
+        semver_range = ""
+        if os.path.isfile("pyproject.toml"):
+            # ex: requires-python = ">=3.8, <3.13"
+            pat = re.compile(r"requires-python = \"(?P<semver_range>[^\"]+)\"$")
+            with open("pyproject.toml") as f:
+                for line in f:
+                    if m := pat.match(line):
+                        semver_range = m.group("semver_range")
+            if not semver_range:
+                raise Exception("could not find `requires-python` entry in pyproject.toml")
+        elif os.path.isfile("setup.cfg"):
+            # ex: python_requires = >=3.8, <3.13
+            pat = re.compile(r"python_requires = (?P<semver_range>.+)$")
+            with open("setup.cfg") as f:
+                for line in f:
+                    if m := pat.match(line):
+                        semver_range = m.group("semver_range")
+            if not semver_range:
+                raise Exception("could not find `python_requires` entry in setup.cfg")
+        else:
+            raise Exception("could not find pyproject.toml nor setup.cfg")
+        
         top_python = semver_parser_tools.get_latest_py3_release()
         all_matches = semver_parser_tools.list_all_majmin_versions(
           major=top_python[0],
-          semver_range=os.environ["semver_RANGE"],
+          semver_range=semver_range,
           max_minor=top_python[1],
         )
         print(f"{max(all_matches)[0]}.{max(all_matches)[1]}")
