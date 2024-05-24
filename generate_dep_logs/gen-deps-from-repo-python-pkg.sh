@@ -11,7 +11,7 @@ set -e
 
 
 # get all extras
-VARIANTS_LIST=$(python3 $GITHUB_ACTION_PATH/utils/list_extras.py setup.cfg)
+VARIANTS_LIST=$(python3 $GITHUB_ACTION_PATH/utils/list_extras.py .)
 VARIANTS_LIST="- $(echo $VARIANTS_LIST)" # "-" signifies regular package
 echo $VARIANTS_LIST
 
