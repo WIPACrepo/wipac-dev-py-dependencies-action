@@ -70,7 +70,7 @@ runs:
         # remove any old ones, then regenerate only what's needed
         rm dependencies*.log || true
 
-        export PACKAGE_NAME=$(python3 ${{ github.action_path }}/utils/get_package_name.py setup.cfg)
+        export PACKAGE_NAME=$(python3 ${{ github.action_path }}/utils/get_package_name.py .)
         export GITHUB_ACTION_PATH=${{ github.action_path }}
         export ACTION_REPOSITORY="WIPACrepo/wipac-dev-py-setup-action"
 
