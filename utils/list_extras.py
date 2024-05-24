@@ -1,5 +1,4 @@
-"""Print the list of setup/pip extras (options.extras_require section) for a
-setup.cfg."""
+"""Print the list of setup/pip extras for python project."""
 
 import argparse
 import configparser
@@ -9,8 +8,8 @@ from typing import Iterator
 import toml
 
 
-def _iter_extras_pyproject_toml(setup_cfg_file: Path) -> Iterator[str]:
-    with open(setup_cfg_file) as f:
+def _iter_extras_pyproject_toml(pyproject_toml: Path) -> Iterator[str]:
+    with open(pyproject_toml) as f:
         toml_dict = toml.load(f)
     try:
         yield from list(toml_dict["project"]["optional-dependencies"].keys())
@@ -51,7 +50,6 @@ if __name__ == "__main__":
             return fpath
 
     parser = argparse.ArgumentParser(
-        description="Read 'setup.cfg' and get the [options.extras_require] section's keys",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
