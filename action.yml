@@ -74,7 +74,8 @@ runs:
         export GITHUB_ACTION_PATH=${{ github.action_path }}
         export ACTION_REPOSITORY="WIPACrepo/wipac-dev-py-setup-action"
 
-        # grab local copy to avoid path mangling -- replace when https://github.com/WIPACrepo/wipac-dev-py-dependencies-action/issues/6         
+        # grab local copy to avoid path mangling -- replace when https://github.com/WIPACrepo/wipac-dev-py-dependencies-action/issues/6
+        pip install requests semantic-version
         wget https://raw.githubusercontent.com/WIPACrepo/wipac-dev-tools/main/wipac_dev_tools/semver_parser_tools.py -O semver_parser_tools_local.py
         
         # get python3 version (max) -- copied from https://github.com/WIPACrepo/wipac-dev-py-versions-action/blob/main/action.yml
