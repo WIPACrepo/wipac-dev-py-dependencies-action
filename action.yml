@@ -126,6 +126,7 @@ runs:
         fi
 
         # Commit
+        rm semver_parser_tools_local.py
         git add .
         git commit -m "<bot> update dependencies*.log files(s)" || true  # okay if no change
 
