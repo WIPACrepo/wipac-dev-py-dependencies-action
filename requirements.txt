@@ -1,2 +1,2 @@
-wipac-dev-tools[semver]
+wipac-dev-tools[semver]==1.9.0
 toml
