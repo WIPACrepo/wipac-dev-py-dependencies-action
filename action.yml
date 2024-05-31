@@ -74,10 +74,13 @@ runs:
         export GITHUB_ACTION_PATH=${{ github.action_path }}
         export ACTION_REPOSITORY="WIPACrepo/wipac-dev-py-setup-action"
 
+        # grab local copy to avoid path mangling -- replace when https://github.com/WIPACrepo/wipac-dev-py-dependencies-action/issues/6         
+        wget https://raw.githubusercontent.com/WIPACrepo/wipac-dev-tools/main/wipac_dev_tools/semver_parser_tools.py -o semver_parser_tools_local.py
+        
         # get python3 version (max) -- copied from https://github.com/WIPACrepo/wipac-dev-py-versions-action/blob/main/action.yml
         export PACKAGE_MAX_PYTHON_VERSION=$(python -c '
         import os, re
-        from wipac_dev_tools import semver_parser_tools
+        import semver_parser_tools_local as semver_parser_tools
         
         semver_range = ""
         if os.path.isfile("pyproject.toml"):
