@@ -52,6 +52,7 @@ runs:
         sudo apt-get install jq
         sudo apt-get install ./sysbox-ce_0.6.4-0.linux_amd64.deb
         # sudo systemctl status sysbox -n20  # used below
+      shell: bash
 
     - name: Build dependencies.log (and commit)
       if: env.IS_GIT_BEHIND != 'true'
@@ -88,7 +89,6 @@ runs:
         # Commit
         git add .
         git commit -m "<bot> update dependencies*.log files(s)" || true  # okay if no change
-
       shell: bash
 
     - name: Push changes
