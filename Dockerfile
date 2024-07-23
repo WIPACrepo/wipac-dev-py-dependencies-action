@@ -3,5 +3,7 @@ ARG PYTHON=3.12
 FROM python:${PYTHON}
 
 ENV GITHUB_ACTION_PATH="/gha/"
+WORKDIR $GITHUB_ACTION_PATH
+COPY . .
 
-CMD ["/bin/bash", "$GITHUB_ACTION_PATH/action.sh"]
+CMD ["/bin/bash", "action.sh"]
