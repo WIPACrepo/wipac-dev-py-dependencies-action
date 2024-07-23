@@ -7,6 +7,10 @@ WORKDIR $GITHUB_ACTION_PATH
 COPY . .
 
 # to startup docker daemon
+RUN apt-get update && \
+    apt-get -qy full-upgrade && \
+    apt-get install -qy curl && \
+    curl -sSL https://get.docker.com/ | sh
 RUN touch /var/log/dockerd.log
 
 RUN apt-get update
