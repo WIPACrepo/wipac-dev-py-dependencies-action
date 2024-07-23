@@ -20,9 +20,6 @@ inputs:
 #     description: "Random number"
 #     value: ${{ steps.random-number-generator.outputs.random-id }}
 
-env:
-  CONTAINER: "myaction:local"
-
 runs:
   using: "composite"
   steps:
@@ -61,7 +58,8 @@ runs:
       if: env.IS_GIT_BEHIND != 'true'
       run: |
         # TODO: find the image on github / build if on a branch
-        docker build --tag $CONTAINER ${{ github.action_path }}
+        echo "CONTAINER=myaction:local" >> $GITHUB_ENV
+        docker build --tag ${{ env.CONTAINER }} ${{ github.action_path }}
       shell: bash
 
     - name: Build dependencies.log (and commit)
@@ -90,7 +88,7 @@ runs:
             --env DOCKERFILE_NAMETAGS="${{ inputs.dockerfile_nametags }}" \
             --mount type=bind,source=${{ github.action_path }},target=/gha/ \
             --mount type=bind,source=$(pwd),target=/repo/ \
-            $CONTAINER
+            ${{ env.CONTAINER }}
         
         # Commit
         git add .
