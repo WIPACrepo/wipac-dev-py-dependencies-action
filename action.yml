@@ -69,7 +69,7 @@ runs:
         
         # TODO: find the image on github / build if on a branch
         CONTAINER="myaction:local"
-        docker build --tag $CONTAINER .
+        docker build --tag $CONTAINER ${{ github.action_path }}
 
         # run docker container
         docker run --rm \
