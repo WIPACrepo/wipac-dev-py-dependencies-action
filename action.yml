@@ -73,7 +73,6 @@ runs:
 
         # run docker container
         docker run --rm \
-            --env GITHUB_ACTION_PATH=/gha/ \
             --env ACTION_REPOSITORY="WIPACrepo/wipac-dev-py-setup-action" \
             --env DOCKERFILE_NAMETAGS="${{ inputs.dockerfile_nametags }}" \
             --mount type=bind,source=${{ github.action_path }},target=/gha/ \
