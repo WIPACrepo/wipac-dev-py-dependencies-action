@@ -56,6 +56,7 @@ print(f"{max(all_matches)[0]}.{max(all_matches)[1]}")
 ')
 
 echo $PACKAGE_MAX_PYTHON_VERSION
+rm semver_parser_tools_local.py
 
 
 # Build
