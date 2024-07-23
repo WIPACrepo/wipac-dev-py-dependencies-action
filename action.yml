@@ -22,6 +22,8 @@ inputs:
 
 runs:
   using: "composite"
+  env:
+    CONTAINER: "myaction:local"
   steps:
     - uses: actions/setup-python@v4
       with:
@@ -54,6 +56,13 @@ runs:
         # sudo systemctl status sysbox -n20  # used below
       shell: bash
 
+    - name: Get Docker container
+      if: env.IS_GIT_BEHIND != 'true'
+      run: |
+        # TODO: find the image on github / build if on a branch
+        docker build --tag $CONTAINER ${{ github.action_path }}
+      shell: bash
+
     - name: Build dependencies.log (and commit)
       if: env.IS_GIT_BEHIND != 'true'
       run: |
@@ -74,10 +83,6 @@ runs:
           tail .gitignore
         fi
         
-        # TODO: find the image on github / build if on a branch
-        CONTAINER="myaction:local"
-        docker build --tag $CONTAINER ${{ github.action_path }}
-
         # run docker container
         docker run --rm --runtime=sysbox-runc --hostname=syscont \
             --env ACTION_REPOSITORY="WIPACrepo/wipac-dev-py-setup-action" \
