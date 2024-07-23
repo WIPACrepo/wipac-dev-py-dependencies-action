@@ -6,7 +6,7 @@ ENV GITHUB_ACTION_PATH="/gha/"
 WORKDIR $GITHUB_ACTION_PATH
 COPY . .
 
-# to startup docker daemon
+# docker-in-docker
 RUN apt-get update && \
     apt-get -qy full-upgrade && \
     apt-get install -qy curl && \
