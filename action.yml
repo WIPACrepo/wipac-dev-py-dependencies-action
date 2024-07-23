@@ -56,10 +56,12 @@ runs:
 
     - name: Get Docker container
       if: env.IS_GIT_BEHIND != 'true'
+      id: container
       run: |
         # TODO: find the image on github / build if on a branch
-        echo "CONTAINER=myaction:local" >> $GITHUB_ENV
-        docker build --tag ${{ env.CONTAINER }} ${{ github.action_path }}
+        CONTAINER=myaction:local
+        echo "CONTAINER=$CONTAINER" >> "${GITHUB_OUTPUT}"
+        docker build --tag $CONTAINER ${{ github.action_path }}
       shell: bash
 
     - name: Build dependencies.log (and commit)
@@ -88,7 +90,7 @@ runs:
             --env DOCKERFILE_NAMETAGS="${{ inputs.dockerfile_nametags }}" \
             --mount type=bind,source=${{ github.action_path }},target=/gha/ \
             --mount type=bind,source=$(pwd),target=/repo/ \
-            ${{ env.CONTAINER }}
+            ${{ steps.container.outputs.CONTAINER }}
         
         # Commit
         git add .
