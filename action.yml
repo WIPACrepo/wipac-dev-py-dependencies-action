@@ -43,10 +43,23 @@ runs:
         git config user.email ${{ inputs.git_committer_email }}
       shell: bash
 
+    - name: Install sysbox (needed for docker-in-docker)
+      if: env.IS_GIT_BEHIND != 'true'
+      run: |
+        # https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
+        wget https://downloads.nestybox.com/sysbox/releases/v0.6.4/sysbox-ce_0.6.4-0.linux_amd64.deb
+        docker rm $(docker ps -a -q) -f  |  true
+        sudo apt-get install jq
+        sudo apt-get install ./sysbox-ce_0.6.4-0.linux_amd64.deb
+        # sudo systemctl status sysbox -n20  # used below
+
     - name: Build dependencies.log (and commit)
       if: env.IS_GIT_BEHIND != 'true'
       run: |
         set -x  # turn on debugging
+        
+        # activate sysbox -- https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
+        sudo systemctl status sysbox -n20
         
         # append permissive line to .gitignore since *.log is commonly present
         line='!dependencies*.log'
@@ -65,7 +78,7 @@ runs:
         docker build --tag $CONTAINER ${{ github.action_path }}
 
         # run docker container
-        docker run --rm \
+        docker run --rm --runtime=sysbox-runc --hostname=syscont \
             --env ACTION_REPOSITORY="WIPACrepo/wipac-dev-py-setup-action" \
             --env DOCKERFILE_NAMETAGS="${{ inputs.dockerfile_nametags }}" \
             --mount type=bind,source=${{ github.action_path }},target=/gha/ \
