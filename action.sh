@@ -62,7 +62,7 @@ rm semver_parser_tools_local.py
 # Build
 if [ -f ./Dockerfile ]; then
   # from Dockerfile(s)...
-  $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-from-repo-dockerfiles.sh
+  $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-from-user-docker-images.sh
 else
   # from setup.cfg...
   $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-from-repo-python-pkg.sh

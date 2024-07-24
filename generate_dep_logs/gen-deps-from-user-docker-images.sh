@@ -4,7 +4,7 @@ set -e
 
 ########################################################################
 #
-# Generate dependencies-*.log for each Dockerfile*
+# Generate dependencies-*.log for each user-supplied image
 #
 ########################################################################
 
