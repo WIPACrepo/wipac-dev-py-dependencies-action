@@ -33,13 +33,6 @@ runs:
 
     - name: Is this the most recent commit? It won't be if the action was reran
       run: |
-        mkdir saved-images/
-        images_to_dep=$(sudo docker images | awk '$2=="py-dep-this"' | awk -F ' ' '{print $1":"$2}')
-        for image in $images_to_dep; do
-            docker save -o saved-images/$image.tar $image
-        done
-        
-        exit 1
         # check git status
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         git fetch &> /dev/null
@@ -135,7 +128,11 @@ runs:
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
-        
+        mkdir saved-images/
+        images_to_dep=$(sudo docker images | awk '$2=="py-dep-this"' | awk -F ' ' '{print $1":"$2}')
+        for image in $images_to_dep; do
+            docker save -o saved-images/$image.tar $image
+        done
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
@@ -145,6 +142,7 @@ runs:
             --env DOCKERFILE_NAMETAGS="${{ inputs.dockerfile_nametags }}" \
             --mount type=bind,source=${{ github.action_path }},target=/gha/ \
             --mount type=bind,source=$(pwd),target=/repo/ \
+            --mount type=bind,source=$(pwd)/saved-images,target=/saved-images/ \
             ${{ steps.container.outputs.CONTAINER }}
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
