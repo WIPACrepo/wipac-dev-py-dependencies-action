@@ -43,20 +43,20 @@ runs:
         git config user.email ${{ inputs.git_committer_email }}
       shell: bash
 
-    - name: Install sysbox (needed for docker-in-docker)
-      if: env.IS_GIT_BEHIND != 'true'
-      run: |
-        temp_dir=$(mktemp -d)
-        cd $temp_dir
-        # https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
-        wget https://downloads.nestybox.com/sysbox/releases/v0.6.4/sysbox-ce_0.6.4-0.linux_amd64.deb
-        docker rm $(docker ps -a -q) -f  ||  echo "ok: no docker containers to remove"
-        sudo apt-get install jq
-        sudo apt-get install ./sysbox-ce_0.6.4-0.linux_amd64.deb
-        # sudo systemctl status sysbox -n20  # used below
-        cd ..
-        rm -rf $temp_dir
-      shell: bash
+    #    - name: Install sysbox (needed for docker-in-docker)
+    #      if: env.IS_GIT_BEHIND != 'true'
+    #      run: |
+    #        temp_dir=$(mktemp -d)
+    #        cd $temp_dir
+    #        # https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
+    #        wget https://downloads.nestybox.com/sysbox/releases/v0.6.4/sysbox-ce_0.6.4-0.linux_amd64.deb
+    #        docker rm $(docker ps -a -q) -f  ||  echo "ok: no docker containers to remove"
+    #        sudo apt-get install jq
+    #        sudo apt-get install ./sysbox-ce_0.6.4-0.linux_amd64.deb
+    #        # sudo systemctl status sysbox -n20  # used below
+    #        cd ..
+    #        rm -rf $temp_dir
+    #      shell: bash
 
     - name: Get Docker container
       if: env.IS_GIT_BEHIND != 'true'
@@ -72,6 +72,7 @@ runs:
         
         # docker pull ghcr.io/wipaCrepo/wipac-dev-py-setup-action@sha256:YOUR_DIGEST
         
+        exit 1
         
         CONTAINER=myaction:local
         echo "CONTAINER=$CONTAINER" >> "${GITHUB_OUTPUT}"
