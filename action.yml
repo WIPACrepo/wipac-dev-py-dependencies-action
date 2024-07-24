@@ -64,6 +64,7 @@ runs:
       env:
         action: ${{ github.action }}
         action_ref: ${{ github.action_ref }}
+        action_repository: ${{ github.action_repository }}
       run: |
         # TODO: find the image on github / build if on a branch
         
@@ -72,8 +73,10 @@ runs:
         echo "${{ github.action }}"
         echo "${{ github.action_repository }}"
         echo "${{ github.action_path }}"
+        echo "from env:"
         echo "$action"
         echo "$action_ref"
+        echo "$action_repository"
         
         # docker pull ghcr.io/wipaCrepo/wipac-dev-py-setup-action@sha256:YOUR_DIGEST
         
