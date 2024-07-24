@@ -9,6 +9,7 @@ sleep 1
 for file in /saved-images/*; do
     echo "entrypoint: loading transferred docker image from $file"
     docker load -i $file
+    rm $file  # save disk space
     docker images
 done
 

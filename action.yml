@@ -132,6 +132,7 @@ runs:
         images_to_dep=$(sudo docker images | awk '$2=="py-dep-this"' | awk -F ' ' '{print $1":"$2}')
         for image in $images_to_dep; do
             docker save -o saved-images/$image.tar $image
+            docker image rm $image  # save disk space
         done
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
