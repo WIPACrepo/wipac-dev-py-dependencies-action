@@ -71,7 +71,8 @@ runs:
         echo "$action_ref"
         echo "$action_repository"
         
-        src="ghcr.io/$(echo "$a" | awk '{print tolower($0)}'):$action_ref"
+        lower_action_repo="$(echo "$a" | awk '{print tolower($0)}')"
+        src="ghcr.io/$lower_action_repo:$action_ref"
         echo $src
         
         # docker pull 
