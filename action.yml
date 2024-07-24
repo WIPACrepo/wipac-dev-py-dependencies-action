@@ -29,6 +29,7 @@ runs:
 
     - name: Is this the most recent commit? It won't be if the action was reran
       run: |
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         git fetch &> /dev/null
         if [[ $(git status -sb | grep behind) ]]; then
           echo "IS_GIT_BEHIND=true" >> $GITHUB_ENV
@@ -39,24 +40,26 @@ runs:
     - name: Git config
       if: env.IS_GIT_BEHIND != 'true'
       run: |
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         git config user.name ${{ inputs.git_committer_name }}
         git config user.email ${{ inputs.git_committer_email }}
       shell: bash
 
-    #    - name: Install sysbox (needed for docker-in-docker)
-    #      if: env.IS_GIT_BEHIND != 'true'
-    #      run: |
-    #        temp_dir=$(mktemp -d)
-    #        cd $temp_dir
-    #        # https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
-    #        wget https://downloads.nestybox.com/sysbox/releases/v0.6.4/sysbox-ce_0.6.4-0.linux_amd64.deb
-    #        docker rm $(docker ps -a -q) -f  ||  echo "ok: no docker containers to remove"
-    #        sudo apt-get install jq
-    #        sudo apt-get install ./sysbox-ce_0.6.4-0.linux_amd64.deb
-    #        # sudo systemctl status sysbox -n20  # used below
-    #        cd ..
-    #        rm -rf $temp_dir
-    #      shell: bash
+    - name: Install sysbox (needed for docker-in-docker)
+      if: env.IS_GIT_BEHIND != 'true'
+      run: |
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        temp_dir=$(mktemp -d)
+        cd $temp_dir
+        # https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
+        wget https://downloads.nestybox.com/sysbox/releases/v0.6.4/sysbox-ce_0.6.4-0.linux_amd64.deb
+        docker rm $(docker ps -a -q) -f  ||  echo "ok: no docker containers to remove"
+        sudo apt-get install jq
+        sudo apt-get install ./sysbox-ce_0.6.4-0.linux_amd64.deb
+        # sudo systemctl status sysbox -n20  # used below
+        cd ..
+        rm -rf $temp_dir
+      shell: bash
 
     - name: Get Docker container
       if: env.IS_GIT_BEHIND != 'true'
@@ -65,13 +68,12 @@ runs:
         action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         action_ref: ${{ github.action_ref }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
       run: |
-        lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
-        
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         
-        IMAGE="$lower_action_repo:$action_ref"
+        lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
+        image="$lower_action_repo:$action_ref"
         if docker pull "ghcr.io/$IMAGE"; then
-            CONTAINER=$IMAGE
+            CONTAINER=$image
         else
             # TODO: check if there *should* be an image
             echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -82,7 +84,6 @@ runs:
         
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         echo "CONTAINER=$CONTAINER" >> "${GITHUB_OUTPUT}"
-        exit 1
       shell: bash
 
     - name: Build dependencies.log (and commit)
@@ -90,9 +91,8 @@ runs:
       env:
         action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
       run: |
-        set -x  # turn on debugging
-        
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        set -x  # turn on debugging
         
         # activate sysbox -- https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
         sudo systemctl status sysbox -n20
@@ -129,6 +129,7 @@ runs:
     - name: Push changes
       if: env.IS_GIT_BEHIND != 'true'
       run: |
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         status=`git status 2>&1 | tee`
         ahead=`echo -n "${status}" 2> /dev/null | grep "Your branch is ahead of" &> /dev/null; echo "$?"`
         if [ "$ahead" -eq "1" ]; then
