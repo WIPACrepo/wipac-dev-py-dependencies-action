@@ -78,7 +78,13 @@ runs:
         if docker pull $image_src; then
             CONTAINER=$image
         else
-            # TODO: check if there *should* be an image
+            # check if there *should* be an image (v# tag)
+            vtag_pat="v[0-9]"  # matching essentially uses 'startswith' logic
+            if [[ $action_ref =~ $pat ]]; then 
+                echo "ERROR: image not found at $image_src and it should exist (tag is $action_ref)"
+                exit 1
+            fi
+            # this is a branch, so build locally
             echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
             echo "PULLING IMAGE FAILED -- BUILDING LOCAL"
             CONTAINER="thisaction:local"
