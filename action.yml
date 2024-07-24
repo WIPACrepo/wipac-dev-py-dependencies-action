@@ -68,15 +68,18 @@ runs:
         # find the image on github / build if on a branch
         
         lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
-        IMAGE="$lower_action_repo:$action_ref"
         
-        docker pull "ghcr.io/$IMAGE" 
+        IMAGE="$lower_action_repo:$action_ref"
+        if docker pull "ghcr.io/$IMAGE"; then
+            CONTAINER=$IMAGE
+        else
+            # TODO: check if there *should* be an image
+            CONTAINER="thisaction:local"
+            docker build --tag $CONTAINER ${{ github.action_path }}
+        fi
+        echo "CONTAINER=$CONTAINER" >> "${GITHUB_OUTPUT}"
         
         exit 1
-        
-        CONTAINER=myaction:local
-        echo "CONTAINER=$CONTAINER" >> "${GITHUB_OUTPUT}"
-        docker build --tag $CONTAINER ${{ github.action_path }}
       shell: bash
 
     - name: Build dependencies.log (and commit)
