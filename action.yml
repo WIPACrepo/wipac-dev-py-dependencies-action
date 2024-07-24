@@ -72,6 +72,7 @@ runs:
         
         lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
         image="$lower_action_repo:$action_ref"
+        
         if docker pull "ghcr.io/$IMAGE"; then
             CONTAINER=$image
         else
@@ -109,7 +110,9 @@ runs:
           tail .gitignore
         fi
         
+        set +x
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        set -x
         
         # run docker container
         docker run --rm --runtime=sysbox-runc --hostname=syscont \
@@ -119,7 +122,9 @@ runs:
             --mount type=bind,source=$(pwd),target=/repo/ \
             ${{ steps.container.outputs.CONTAINER }}
         
+        set +x
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        set -x
         
         # Commit
         git add .
