@@ -122,7 +122,8 @@ runs:
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
         mkdir saved-images/ && trap 'rm -rf saved-images/' EXIT
-        images_to_dep=$(sudo docker images | awk '$2=="py-dep-this"' | awk -F ' ' '{print $1":"$2}')
+        DOCKER_TAG_TO_DEP=
+        images_to_dep=$(sudo docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}')
         for image in $images_to_dep; do
             docker save -o saved-images/$image.tar $image
             docker image rm $image  # save disk space
@@ -133,6 +134,7 @@ runs:
         # run docker container
         docker run --rm --runtime=sysbox-runc --hostname=syscont \
             --env ACTION_REPOSITORY="$action_repository" \
+            --env $DOCKER_TAG_TO_DEP \
             --mount type=bind,source=${{ github.action_path }},target=/gha/ \
             --mount type=bind,source=$(pwd),target=/repo/ \
             --mount type=bind,source=$(pwd)/saved-images,target=/saved-images/ \

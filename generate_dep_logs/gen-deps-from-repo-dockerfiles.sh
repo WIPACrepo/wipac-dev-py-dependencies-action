@@ -18,13 +18,20 @@ if [[ $(grep -o "USER" ./Dockerfile) ]]; then
     USE_PODMAN='--podman'
 fi
 
+# get images to dep
+images_to_dep=$(sudo docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}')
+if [ -f ./Dockerfile* ] && [ -z $images_to_dep ]; then
+    echo "ERROR: './Dockerfile*' found but no pre-built Docker images (with tag='$DOCKER_TAG_TO_DEP') were provided"
+    exit 1
+fi
 
-for fname in ./Dockerfile*; do
-    echo $fname
-    docker images
+# dep each image
+for image in $images_to_dep; do
+    echo $image
     $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps.sh \
-        $fname \
-        "dependencies-from-$(basename $fname).log" \
-        "within the container built from '$fname'" \
+        $image \
+        "dependencies-from-$(basename $image).log" \
+        "within the container built from the user-supplied image: $image" \
         $USE_PODMAN
+     docker image rm $image  # save disk space
 done
