@@ -33,7 +33,13 @@ runs:
 
     - name: Is this the most recent commit? It won't be if the action was reran
       run: |
-        docker images
+        mkdir saved-images/
+        containers=$(sudo docker images | awk '$2=="py-dep-this"' | awk -F ' ' '{print $1":"$2}')
+        for container in $containers; do
+            echo "Container: $container"
+        done
+        docker save -o saved-images/python-alpine.tar python:alpine
+        
         exit 1
         # check git status
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -127,6 +133,10 @@ runs:
           git commit -m "<bot> update .gitignore" || true  # okay if no change
           tail .gitignore
         fi
+        
+        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
+        
+        
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
