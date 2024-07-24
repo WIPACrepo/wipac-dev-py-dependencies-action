@@ -29,6 +29,7 @@ runs:
 
     - name: Is this the most recent commit? It won't be if the action was reran
       run: |
+        # check git status
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         git fetch &> /dev/null
         if [[ $(git status -sb | grep behind) ]]; then
@@ -40,6 +41,7 @@ runs:
     - name: Git config
       if: env.IS_GIT_BEHIND != 'true'
       run: |
+        # git config
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         git config user.name ${{ inputs.git_committer_name }}
         git config user.email ${{ inputs.git_committer_email }}
@@ -48,6 +50,7 @@ runs:
     - name: Install sysbox (needed for docker-in-docker)
       if: env.IS_GIT_BEHIND != 'true'
       run: |
+        # install sysbox (needed for docker-in-docker)
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         temp_dir=$(mktemp -d)
         cd $temp_dir
@@ -68,6 +71,7 @@ runs:
         action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         action_ref: ${{ github.action_ref }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
       run: |
+        # get this action's docker image/container
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         
         lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
@@ -100,6 +104,7 @@ runs:
       env:
         action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
       run: |
+        # build dependencies.log (and commit)
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
         # activate sysbox -- https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
@@ -137,6 +142,7 @@ runs:
     - name: Push changes
       if: env.IS_GIT_BEHIND != 'true'
       run: |
+        # push changes (if needed)
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         status=`git status 2>&1 | tee`
         ahead=`echo -n "${status}" 2> /dev/null | grep "Your branch is ahead of" &> /dev/null; echo "$?"`
