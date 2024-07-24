@@ -61,6 +61,8 @@ runs:
     - name: Get Docker container
       if: env.IS_GIT_BEHIND != 'true'
       id: container
+      env:
+        action_ref: ${{ github.action_ref }}
       run: |
         # TODO: find the image on github / build if on a branch
         
@@ -70,6 +72,7 @@ runs:
         echo "${{ github.action_ref }}"
         echo "${{ github.action_repository }}"
         echo "${{ github.action_path }}"
+        echo "$action_ref"
         
         # docker pull ghcr.io/wipaCrepo/wipac-dev-py-setup-action@sha256:YOUR_DIGEST
         
