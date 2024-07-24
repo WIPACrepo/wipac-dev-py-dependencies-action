@@ -68,16 +68,18 @@ runs:
         action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         action_ref: ${{ github.action_ref }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
       run: |
-        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         
         lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
         image="$lower_action_repo:$action_ref"
+        image_src="ghcr.io/$image"
         
-        if docker pull "ghcr.io/$image"; then
+        echo "pulling image from $image_src..."
+        if docker pull $image_src; then
             CONTAINER=$image
         else
             # TODO: check if there *should* be an image
-            set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
+            echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
             echo "PULLING IMAGE FAILED -- BUILDING LOCAL"
             CONTAINER="thisaction:local"
             docker build --tag $CONTAINER ${{ github.action_path }}
