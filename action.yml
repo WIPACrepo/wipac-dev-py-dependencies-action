@@ -73,7 +73,7 @@ runs:
         lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
         image="$lower_action_repo:$action_ref"
         
-        if docker pull "ghcr.io/$IMAGE"; then
+        if docker pull "ghcr.io/$image"; then
             CONTAINER=$image
         else
             # TODO: check if there *should* be an image
