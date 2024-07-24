@@ -65,17 +65,12 @@ runs:
         action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         action_ref: ${{ github.action_ref }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
       run: |
-        # TODO: find the image on github / build if on a branch
-        
-        echo "from env:"
-        echo "$action_ref"
-        echo "$action_repository"
+        # find the image on github / build if on a branch
         
         lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
-        src="ghcr.io/$lower_action_repo:$action_ref"
-        echo $src
+        IMAGE="$lower_action_repo:$action_ref"
         
-        # docker pull 
+        docker pull "ghcr.io/$IMAGE" 
         
         exit 1
         
