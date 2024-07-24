@@ -65,20 +65,23 @@ runs:
         action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         action_ref: ${{ github.action_ref }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
       run: |
-        # find the image on github / build if on a branch
-        
         lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
+        
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         
         IMAGE="$lower_action_repo:$action_ref"
         if docker pull "ghcr.io/$IMAGE"; then
             CONTAINER=$IMAGE
         else
             # TODO: check if there *should* be an image
+            echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            echo "PULLING IMAGE FAILED -- BUILDING LOCAL"
             CONTAINER="thisaction:local"
             docker build --tag $CONTAINER ${{ github.action_path }}
         fi
-        echo "CONTAINER=$CONTAINER" >> "${GITHUB_OUTPUT}"
         
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        echo "CONTAINER=$CONTAINER" >> "${GITHUB_OUTPUT}"
         exit 1
       shell: bash
 
@@ -88,6 +91,8 @@ runs:
         action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
       run: |
         set -x  # turn on debugging
+        
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         
         # activate sysbox -- https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
         sudo systemctl status sysbox -n20
@@ -104,6 +109,8 @@ runs:
           tail .gitignore
         fi
         
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        
         # run docker container
         docker run --rm --runtime=sysbox-runc --hostname=syscont \
             --env ACTION_REPOSITORY="$action_repository" \
@@ -111,6 +118,8 @@ runs:
             --mount type=bind,source=${{ github.action_path }},target=/gha/ \
             --mount type=bind,source=$(pwd),target=/repo/ \
             ${{ steps.container.outputs.CONTAINER }}
+        
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         
         # Commit
         git add .
