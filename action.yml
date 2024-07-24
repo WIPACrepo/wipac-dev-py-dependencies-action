@@ -34,11 +34,10 @@ runs:
     - name: Is this the most recent commit? It won't be if the action was reran
       run: |
         mkdir saved-images/
-        containers=$(sudo docker images | awk '$2=="py-dep-this"' | awk -F ' ' '{print $1":"$2}')
-        for container in $containers; do
-            echo "Container: $container"
+        images_to_dep=$(sudo docker images | awk '$2=="py-dep-this"' | awk -F ' ' '{print $1":"$2}')
+        for image in $images_to_dep; do
+            docker save -o saved-images/$image.tar $image
         done
-        docker save -o saved-images/python-alpine.tar python:alpine
         
         exit 1
         # check git status
