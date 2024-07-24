@@ -10,13 +10,6 @@ inputs:
     description: 'The email used for "git config user.email"'
     required: false
     default: github-actions@github.com
-  dockerfile_nametags:
-    description: 'A space-separated list of image names and tags to apply to each Dockerfile for locally dependent builds (these images are built first), ex: Dockerfile:icecube/skymap_scanner:latest Dockerfile_pulsar:icecube/skymap_scanner:latest_pulsar'
-    required: false
-    default: ''
-
-
-# TODO: add build args, then build every combo. May need to pair with dockerfile paths. OR have images pre-built by user (but then what if they forget? need to decide some level of user responsibility)
 
 
 # outputs:
@@ -140,7 +133,6 @@ runs:
         # run docker container
         docker run --rm --runtime=sysbox-runc --hostname=syscont \
             --env ACTION_REPOSITORY="$action_repository" \
-            --env DOCKERFILE_NAMETAGS="${{ inputs.dockerfile_nametags }}" \
             --mount type=bind,source=${{ github.action_path }},target=/gha/ \
             --mount type=bind,source=$(pwd),target=/repo/ \
             --mount type=bind,source=$(pwd)/saved-images,target=/saved-images/ \
