@@ -66,9 +66,9 @@ runs:
         
         echo ${{ github }}
         echo ""
-        echo ${{ github.action }}
-        echo ${{ github.action_ref }}
-        echo ${{ github.action_repository }}
+        echo "${{ github.action }}"
+        echo "${{ github.action_ref }}"
+        echo "${{ github.action_repository }}"
         
         # docker pull ghcr.io/wipaCrepo/wipac-dev-py-setup-action@sha256:YOUR_DIGEST
         
