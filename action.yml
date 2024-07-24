@@ -128,7 +128,7 @@ runs:
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
-        mkdir saved-images/
+        mkdir saved-images/ && trap 'rm -rf saved-images/' EXIT
         images_to_dep=$(sudo docker images | awk '$2=="py-dep-this"' | awk -F ' ' '{print $1":"$2}')
         for image in $images_to_dep; do
             docker save -o saved-images/$image.tar $image
