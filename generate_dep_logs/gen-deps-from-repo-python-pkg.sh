@@ -43,7 +43,7 @@ EOF
 
   # and build it
   image="gen-$( basename $DEPS_LOG_FNAME ):local"
-  docker build -t $image --file $dockerfile .
+  docker build -t $image --file $dockerfile $REPO_PATH
 
   # generate deps!
   $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
