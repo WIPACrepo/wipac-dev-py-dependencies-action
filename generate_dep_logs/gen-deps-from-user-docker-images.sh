@@ -8,6 +8,8 @@ set -e
 #
 ########################################################################
 
+cd $REPO_PATH
+ls
 
 # install podman if needed... (grep -o -> 1 if found)
 if [[ $(grep -o "USER" ./Dockerfile) ]]; then

@@ -9,6 +9,8 @@ set -e
 #
 ########################################################################
 
+cd $REPO_PATH
+ls
 
 # get all extras
 VARIANTS_LIST=$(python3 $GITHUB_ACTION_PATH/utils/list_extras.py .)

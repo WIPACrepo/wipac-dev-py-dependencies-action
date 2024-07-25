@@ -8,6 +8,9 @@ set -e
 #
 ########################################################################
 
+cd $REPO_PATH
+ls
+
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "Usage: gen-deps.sh DOCKERFILE DEPS_LOG_FILE SUBTITLE [IMAGE_NAMETAG] [--podman]"
     exit 1
@@ -27,8 +30,7 @@ fi
 
 
 # move script
-TEMPDIR=$(mktemp -d)
-trap 'rm -rf "$TEMPDIR"' EXIT
+TEMPDIR=$(mktemp -d) && trap 'rm -rf "$TEMPDIR"' EXIT
 cp $GITHUB_ACTION_PATH/generate_dep_logs/pip-freeze-tree.sh $TEMPDIR
 chmod +x $TEMPDIR/pip-freeze-tree.sh
 
