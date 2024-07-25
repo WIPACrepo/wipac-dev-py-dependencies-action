@@ -74,7 +74,7 @@ runs:
         
         # run script
         export REPO_PATH=$(pwd)
-        $GITHUB_ACTION_PATH/action.sh
+        /bin/bash $GITHUB_ACTION_PATH/action.sh
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
