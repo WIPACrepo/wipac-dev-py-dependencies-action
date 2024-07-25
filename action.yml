@@ -14,6 +14,10 @@ inputs:
     description: 'The email used for "git config user.email"'
     required: false
     default: py-dep-this
+  use_directory:
+    description: 'Whether to put all generated dep-log files, relative to the project/repo directory; (true/false)'
+    required: false
+    default: "false"
 
 
 # outputs:
@@ -61,6 +65,7 @@ runs:
         ACTION_REPOSITORY: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         GITHUB_ACTION_PATH: ${{ github.action_path }}
         DOCKER_TAG_TO_DEP: ${{ inputs.docker_tag_to_dep }}
+        DEST_DIRECTORY_IF_WANTED: dependencies-logs/
       run: |
         # build dependencies.log (and commit)
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
@@ -79,11 +84,19 @@ runs:
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
+        # remove any old ones, then regenerate only what's needed
+        (find . -name "dependencies*.log" -type f -print0 | xargs -0 rm) || true
+        
         # run script
         export REPO_PATH=$(pwd)
         /bin/bash $GITHUB_ACTION_PATH/action.sh
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
+        
+        if [[ $( echo "${{ inputs.use_directory }}" | awk '{print tolower($0)}' ) == "true" ]]; then
+            mkdir -p $DEST_DIRECTORY_IF_WANTED
+            find . -name "dependencies*.log" -type f -exec mv -i {} $DEST_DIRECTORY_IF_WANTED  \;
+        fi
         
         # Commit
         git add .

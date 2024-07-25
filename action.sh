@@ -9,10 +9,6 @@ ls $REPO_PATH
 export PACKAGE_NAME=$(python3 $GITHUB_ACTION_PATH/utils/get_package_name.py .)
 
 
-# remove any old ones, then regenerate only what's needed
-rm $REPO_PATH/dependencies*.log || true
-
-
 # grab local copy to avoid path mangling -- replace when https://github.com/WIPACrepo/wipac-dev-py-dependencies-action/issues/6
 pip install requests semantic-version
 temp_dir=$(mktemp -d) && cd $temp_dir && trap 'rm -rf $temp_dir' EXIT
