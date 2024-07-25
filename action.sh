@@ -23,20 +23,22 @@ export PACKAGE_MAX_PYTHON_VERSION=$(python -c '
 import os, re
 import semver_parser_tools_local as semver_parser_tools
 
+repo_path = os.environ["REPO_PATH"]
+
 semver_range = ""
-if os.path.isfile("$REPO_PATH/pyproject.toml"):
+if os.path.isfile(f"{repo_path}/pyproject.toml"):
     # ex: requires-python = ">=3.8, <3.13"
     pat = re.compile(r"requires-python = \"(?P<semver_range>[^\"]+)\"$")
-    with open("$REPO_PATH/pyproject.toml") as f:
+    with open(f"{repo_path}/pyproject.toml") as f:
         for line in f:
             if m := pat.match(line):
                 semver_range = m.group("semver_range")
     if not semver_range:
         raise Exception("could not find `requires-python` entry in pyproject.toml")
-elif os.path.isfile("$REPO_PATH/setup.cfg"):
+elif os.path.isfile(f"{repo_path}/setup.cfg"):
     # ex: python_requires = >=3.8, <3.13
     pat = re.compile(r"python_requires = (?P<semver_range>.+)$")
-    with open("$REPO_PATH/setup.cfg") as f:
+    with open(f"{repo_path}/setup.cfg") as f:
         for line in f:
             if m := pat.match(line):
                 semver_range = m.group("semver_range")
