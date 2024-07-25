@@ -1,5 +1,5 @@
 #!/bin/bash
-echo && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "$( basename "$0" )..." && echo
 set -ex
 
@@ -10,11 +10,10 @@ set -ex
 #
 ########################################################################
 
-cd $REPO_PATH
-ls
+ls $REPO_PATH
 
 # get all extras
-VARIANTS_LIST=$(python3 $GITHUB_ACTION_PATH/utils/list_extras.py .)
+VARIANTS_LIST=$(python3 $GITHUB_ACTION_PATH/utils/list_extras.py $REPO_PATH)
 VARIANTS_LIST="- $(echo $VARIANTS_LIST)" # "-" signifies regular package
 echo $VARIANTS_LIST
 

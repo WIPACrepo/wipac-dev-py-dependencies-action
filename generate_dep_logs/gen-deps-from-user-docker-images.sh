@@ -1,5 +1,5 @@
 #!/bin/bash
-echo && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "$( basename "$0" )..." && echo
 set -ex
 
@@ -9,11 +9,10 @@ set -ex
 #
 ########################################################################
 
-cd $REPO_PATH
-ls
+ls $REPO_PATH
 
 # install podman if needed... (grep -o -> 1 if found)
-if [[ $(grep -o "USER" ./Dockerfile) ]]; then
+if [[ $(grep -o "USER" $REPO_PATH/Dockerfile) ]]; then
     podman --version
     # 'uid' & 'gid' were added in https://github.com/containers/podman/releases/tag/v4.3.0
     $GITHUB_ACTION_PATH/utils/install-podman.sh
@@ -23,8 +22,8 @@ fi
 
 # get images to dep
 images_to_dep=$(docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}')
-if [ -f ./Dockerfile* ] && [ -z $images_to_dep ]; then
-    echo "ERROR: './Dockerfile*' found but no pre-built Docker images (with tag='$DOCKER_TAG_TO_DEP') were provided"
+if [ -f $REPO_PATH/Dockerfile* ] && [ -z $images_to_dep ]; then
+    echo "ERROR: 'Dockerfile*' found but no pre-built Docker images (with tag='$DOCKER_TAG_TO_DEP') were provided"
     exit 1
 fi
 

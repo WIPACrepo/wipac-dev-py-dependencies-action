@@ -1,19 +1,16 @@
 #!/bin/bash
-echo && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "$( basename "$0" )..." && echo
 set -ex
 
-
-cd $REPO_PATH
-ls
-
+ls $REPO_PATH
 
 # env vars
 export PACKAGE_NAME=$(python3 $GITHUB_ACTION_PATH/utils/get_package_name.py .)
 
 
 # remove any old ones, then regenerate only what's needed
-rm dependencies*.log || true
+rm $REPO_PATH/dependencies*.log || true
 
 
 # grab local copy to avoid path mangling -- replace when https://github.com/WIPACrepo/wipac-dev-py-dependencies-action/issues/6
@@ -27,19 +24,19 @@ import os, re
 import semver_parser_tools_local as semver_parser_tools
 
 semver_range = ""
-if os.path.isfile("pyproject.toml"):
+if os.path.isfile("$REPO_PATH/pyproject.toml"):
     # ex: requires-python = ">=3.8, <3.13"
     pat = re.compile(r"requires-python = \"(?P<semver_range>[^\"]+)\"$")
-    with open("pyproject.toml") as f:
+    with open("$REPO_PATH/pyproject.toml") as f:
         for line in f:
             if m := pat.match(line):
                 semver_range = m.group("semver_range")
     if not semver_range:
         raise Exception("could not find `requires-python` entry in pyproject.toml")
-elif os.path.isfile("setup.cfg"):
+elif os.path.isfile("$REPO_PATH/setup.cfg"):
     # ex: python_requires = >=3.8, <3.13
     pat = re.compile(r"python_requires = (?P<semver_range>.+)$")
-    with open("setup.cfg") as f:
+    with open("$REPO_PATH/setup.cfg") as f:
         for line in f:
             if m := pat.match(line):
                 semver_range = m.group("semver_range")
@@ -61,7 +58,7 @@ echo $PACKAGE_MAX_PYTHON_VERSION
 
 
 # Build
-if [ -f ./Dockerfile ]; then
+if [ -f $REPO_PATH/Dockerfile ]; then
   # from Dockerfile(s)...
   $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-from-user-docker-images.sh
 else
