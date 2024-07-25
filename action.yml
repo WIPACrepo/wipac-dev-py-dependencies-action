@@ -132,9 +132,20 @@ runs:
         mkdir saved-images/ && trap 'rm -rf saved-images/' EXIT
         images_to_dep=$(docker images | awk -v pat="${{ inputs.docker_tag_to_dep }}" '$2==pat' | awk -F ' ' '{print $1":"$2}')
         for image in $images_to_dep; do
-            # TODO: parallelize (and think if docker container actually needed)
-            docker save -o saved-images/$image.tar $image
-            docker image rm $image && docker system prune --force  # save disk space
+            docker save -o saved-images/$image.tar $image \
+                && docker image rm $image \
+                && docker system prune --force \
+                & pidlist="$pidlist $!"
+        done
+        
+        # wait for all them
+        for pid in $pidlist; do
+            sleep .1  # little sleep to help logs
+            echo "waiting for $pid..."
+            if ! wait -n $pid; then
+                kill $pidlist 2>/dev/null
+                exit 1
+            fi
         done
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
