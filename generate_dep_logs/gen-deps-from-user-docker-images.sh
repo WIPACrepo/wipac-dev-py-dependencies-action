@@ -19,7 +19,7 @@ if [[ $(grep -o "USER" ./Dockerfile) ]]; then
 fi
 
 # get images to dep
-images_to_dep=$(sudo docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}')
+images_to_dep=$(docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}')
 if [ -f ./Dockerfile* ] && [ -z $images_to_dep ]; then
     echo "ERROR: './Dockerfile*' found but no pre-built Docker images (with tag='$DOCKER_TAG_TO_DEP') were provided"
     exit 1

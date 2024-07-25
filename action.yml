@@ -125,8 +125,12 @@ runs:
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
+        # first, clear space
+        docker system prune --force  # save disk space
+        
+        # next, save images to tar files
         mkdir saved-images/ && trap 'rm -rf saved-images/' EXIT
-        images_to_dep=$(sudo docker images | awk -v pat="${{ inputs.docker_tag_to_dep }}" '$2==pat' | awk -F ' ' '{print $1":"$2}')
+        images_to_dep=$(docker images | awk -v pat="${{ inputs.docker_tag_to_dep }}" '$2==pat' | awk -F ' ' '{print $1":"$2}')
         for image in $images_to_dep; do
             # TODO: parallelize (and think if docker container actually needed)
             docker save -o saved-images/$image.tar $image
