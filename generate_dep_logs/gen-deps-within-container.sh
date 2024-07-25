@@ -62,3 +62,5 @@ ls $TEMPDIR
 
 # finally, move/overwrite the dep-log file that was generated above
 mv $TEMPDIR/deps.log $DEPS_LOG_FILE
+
+sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"

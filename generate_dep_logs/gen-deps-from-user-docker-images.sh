@@ -23,6 +23,7 @@ fi
 # get images to dep
 images_to_dep=$(docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}')
 if [ -f $REPO_PATH/Dockerfile* ] && [ -z $images_to_dep ]; then
+    # TODO: compare counts of files vs images, yes not perfect (considering build args) but moderately effective
     echo "ERROR: 'Dockerfile*' found but no pre-built Docker images (with tag='$DOCKER_TAG_TO_DEP') were provided"
     exit 1
 fi
@@ -36,3 +37,5 @@ for image in $images_to_dep; do
         "within a container built from the user-supplied image '$( echo $image | cut -d ":" -f 1 )'" \
         $USE_PODMAN
 done
+
+sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
