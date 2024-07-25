@@ -39,7 +39,7 @@ chmod +x $TEMPDIR/pip-freeze-tree.sh
 
 # build & generate
 if [[ $* == *--podman* ]]; then  # look for flag anywhere in args
-    podman pull docker-daemon://$DOCKER_IMAGE
+    podman pull docker-daemon:$DOCKER_IMAGE
     podman images
     # 'uid' & 'gid' were added in https://github.com/containers/podman/releases/tag/v4.3.0
     podman run --rm -i \
