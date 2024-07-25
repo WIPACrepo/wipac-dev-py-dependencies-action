@@ -4,30 +4,32 @@ set -e
 
 ########################################################################
 #
-# Generate dependencies-dockerfile*.log for given Dockerfile
+# Generate dependencies-log file for the given docker image
 #
 ########################################################################
 
 cd $REPO_PATH
 ls
 
+########################################################################
+
+# GET ARGS
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
-    echo "Usage: gen-deps.sh DOCKERFILE DEPS_LOG_FILE SUBTITLE [IMAGE_NAMETAG] [--podman]"
+    echo "Usage: gen-deps-within-container.sh DOCKER_IMAGE DEPS_LOG_FILE SUBTITLE [--podman]"
     exit 1
-fi
-if [ ! -f "$1" ]; then
-    echo "File Not Found: $1"
-    exit 2
-fi
-DEPS_LOG_FILE="$2"
-SUBTITLE="$3"
-if [ -z "$4" ] || [[ "$4" == --* ]]; then  # optional -> get default (& not a flag)
-    # lower basename without extension
-    image="for-deps-$(echo $(basename ${DEPS_LOG_FILE%.*}) | awk '{print tolower($0)}')"
 else
-    image="$4"
+    DOCKER_IMAGE="$1"
+    DEPS_LOG_FILE="$2"
+    SUBTITLE="$3"
 fi
 
+# VALIDATE ARGS
+if [ -z "$(docker images -q $DOCKER_IMAGE 2> /dev/null)" ]; then
+    echo "ERROR: image not found: $DOCKER_IMAGE"
+    exit 2
+fi
+
+########################################################################
 
 # move script
 TEMPDIR=$(mktemp -d) && trap 'rm -rf "$TEMPDIR"' EXIT
@@ -37,7 +39,6 @@ chmod +x $TEMPDIR/pip-freeze-tree.sh
 
 # build & generate
 if [[ $* == *--podman* ]]; then  # look for flag anywhere in args
-    podman build -t $image --file $1 .
     # 'uid' & 'gid' were added in https://github.com/containers/podman/releases/tag/v4.3.0
     podman run --rm -i \
         --env PACKAGE_NAME=$PACKAGE_NAME \
@@ -45,16 +46,15 @@ if [[ $* == *--podman* ]]; then  # look for flag anywhere in args
         --env SUBTITLE="$SUBTITLE" \
         --mount type=bind,source=$(realpath $TEMPDIR/),target=/local/$TEMPDIR \
         --userns=keep-id:uid=1000,gid=1000 \
-        $image \
+        $DOCKER_IMAGE \
         /local/$TEMPDIR/pip-freeze-tree.sh /local/$TEMPDIR/$DEPS_LOG_FILE
 else
-    docker build -t $image --file $1 .
     docker run --rm -i \
-        --env PACKAGE_NAME=$PACKAGE_NAME \
-        --env ACTION_REPOSITORY=$ACTION_REPOSITORY \
-        --env SUBTITLE="$SUBTITLE" \
+        --env PACKAGE_NAME \
+        --env ACTION_REPOSITORY \
+        --env SUBTITLE \
         --mount type=bind,source=$(realpath $TEMPDIR/),target=/local/$TEMPDIR \
-        $image \
+        $DOCKER_IMAGE \
         /local/$TEMPDIR/pip-freeze-tree.sh /local/$TEMPDIR/$DEPS_LOG_FILE
 fi
 

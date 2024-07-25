@@ -30,7 +30,7 @@ fi
 # dep each image
 for image in $images_to_dep; do
     echo $image
-    $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps.sh \
+    $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
         $image \
         "dependencies-from-$(basename $image).log" \
         "within the container built from the user-supplied image: $image" \
