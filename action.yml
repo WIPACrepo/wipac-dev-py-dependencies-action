@@ -48,6 +48,13 @@ runs:
         git config user.email ${{ inputs.git_committer_email }}
       shell: bash
 
+    - name: pip
+      if: env.IS_GIT_BEHIND != 'true'
+      run: |
+        sudo apt-get update
+        pip3 install -r ${{ github.action_path }}/requirements.txt
+      shell: bash
+
     - name: Build dependencies.log (and commit)
       if: env.IS_GIT_BEHIND != 'true'
       env:
