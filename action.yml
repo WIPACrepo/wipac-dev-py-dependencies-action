@@ -48,65 +48,15 @@ runs:
         git config user.email ${{ inputs.git_committer_email }}
       shell: bash
 
-    - name: Install sysbox (needed for docker-in-docker)
-      if: env.IS_GIT_BEHIND != 'true'
-      run: |
-        # install sysbox (needed for docker-in-docker)
-        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        temp_dir=$(mktemp -d) && cd $temp_dir && trap 'rm -rf $temp_dir' EXIT  # save disk space
-        # https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
-        wget https://downloads.nestybox.com/sysbox/releases/v0.6.4/sysbox-ce_0.6.4-0.linux_amd64.deb
-        docker rm $(docker ps -a -q) -f  ||  echo "ok: no docker containers to remove"
-        sudo apt-get install jq
-        sudo apt-get install ./sysbox-ce_0.6.4-0.linux_amd64.deb
-        # sudo systemctl status sysbox -n20  # used below
-      shell: bash
-
-    - name: Get Docker container
-      if: env.IS_GIT_BEHIND != 'true'
-      id: container
-      env:
-        action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
-        action_ref: ${{ github.action_ref }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
-      run: |
-        # get this action's docker image/container
-        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        
-        lower_action_repo="$(echo "$action_repository" | awk '{print tolower($0)}')"
-        image="$lower_action_repo:$action_ref"
-        image_src="ghcr.io/$image"
-        
-        echo "pulling image from $image_src ..."
-        if docker pull $image_src; then
-            CONTAINER=$image
-        else
-            # check if there *should* be an image (v# tag)
-            vtag_pat="v[0-9]"  # matching essentially uses 'startswith' logic
-            if [[ $action_ref =~ $vtag_pat ]]; then 
-                echo "ERROR: image not found at $image_src and it should exist (tag is $action_ref)"
-                exit 1
-            fi
-            # this is a branch, so build locally
-            echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-            echo "PULLING IMAGE FAILED -- BUILDING LOCAL"
-            CONTAINER="thisaction:local"
-            docker build --tag $CONTAINER ${{ github.action_path }}
-        fi
-        
-        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
-        echo "CONTAINER=$CONTAINER" >> "${GITHUB_OUTPUT}"
-      shell: bash
-
     - name: Build dependencies.log (and commit)
       if: env.IS_GIT_BEHIND != 'true'
       env:
-        action_repository: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
+        ACTION_REPOSITORY: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
+        GITHUB_ACTION_PATH: ${{ github.action_path }}
+        DOCKER_TAG_TO_DEP: ${{ inputs.docker_tag_to_dep }}
       run: |
         # build dependencies.log (and commit)
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
-        
-        # activate sysbox -- https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md
-        sudo systemctl status sysbox -n20
         
         # append permissive line to .gitignore since *.log is commonly present
         line='!dependencies*.log'
@@ -122,39 +72,9 @@ runs:
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
-        # first, clear space
-        docker system prune --force  # save disk space
-        
-        # next, save images to tar files
-        mkdir saved-images/ && trap 'rm -rf saved-images/' EXIT
-        images_to_dep=$(docker images | awk -v pat="${{ inputs.docker_tag_to_dep }}" '$2==pat' | awk -F ' ' '{print $1":"$2}')
-        for image in $images_to_dep; do
-            docker save -o saved-images/$image.tar $image \
-                && docker image rm $image \
-                && docker system prune --force \
-                & pidlist="$pidlist $!"
-        done
-        
-        # wait for all them
-        for pid in $pidlist; do
-            sleep .1  # little sleep to help logs
-            echo "waiting for $pid..."
-            if ! wait -n $pid; then
-                kill $pidlist 2>/dev/null
-                exit 1
-            fi
-        done
-        
-        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
-        
-        # run docker container
-        docker run --rm --runtime=sysbox-runc --hostname=syscont \
-            --env ACTION_REPOSITORY="$action_repository" \
-            --env DOCKER_TAG_TO_DEP="${{ inputs.docker_tag_to_dep }}" \
-            --mount type=bind,source=${{ github.action_path }},target=/gha/ \
-            --mount type=bind,source=$(pwd),target=/repo/ \
-            --mount type=bind,source=$(pwd)/saved-images,target=/saved-images/ \
-            ${{ steps.container.outputs.CONTAINER }}
+        # run script
+        export REPO_PATH=$(pwd)
+        $GITHUB_ACTION_PATH/action.sh
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         

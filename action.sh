@@ -3,7 +3,7 @@ set -x  # turn on debugging
 set -e
 
 
-cd /repo/
+cd $REPO_PATH
 ls
 
 
@@ -17,7 +17,8 @@ rm dependencies*.log || true
 
 # grab local copy to avoid path mangling -- replace when https://github.com/WIPACrepo/wipac-dev-py-dependencies-action/issues/6
 pip install requests semantic-version
-wget https://raw.githubusercontent.com/WIPACrepo/wipac-dev-tools/main/wipac_dev_tools/semver_parser_tools.py -O semver_parser_tools_local.py
+temp_dir=$(mktemp -d) && cd $temp_dir && trap 'rm -rf $temp_dir' EXIT
+wget https://raw.githubusercontent.com/WIPACrepo/wipac-dev-tools/main/wipac_dev_tools/semver_parser_tools.py -O $temp_dir/semver_parser_tools_local.py
 
 # get python3 version (max) -- copied from https://github.com/WIPACrepo/wipac-dev-py-versions-action/blob/main/action.yml
 export PACKAGE_MAX_PYTHON_VERSION=$(python -c '
@@ -56,7 +57,6 @@ print(f"{max(all_matches)[0]}.{max(all_matches)[1]}")
 ')
 
 echo $PACKAGE_MAX_PYTHON_VERSION
-rm semver_parser_tools_local.py
 
 
 # Build
