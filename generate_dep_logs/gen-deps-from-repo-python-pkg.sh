@@ -42,7 +42,7 @@ CMD []
 EOF
 
   # and build it
-  image='gen-$( basename $DEPS_LOG_FILE ):local'
+  image="gen-$( basename $DEPS_LOG_FILE ):local"
   docker build -t $image --file $dockerfile .
 
   # generate deps!
