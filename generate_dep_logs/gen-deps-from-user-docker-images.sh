@@ -33,5 +33,5 @@ for image in $images_to_dep; do
         "dependencies-from-$(basename $image).log" \
         "within the container built from the user-supplied image: $image" \
         $USE_PODMAN
-     docker image rm $image  # save disk space
+     docker image rm $image && docker system prune --all --force  # save disk space
 done
