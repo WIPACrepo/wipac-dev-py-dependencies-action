@@ -26,11 +26,11 @@ for variant in $VARIANTS_LIST; do
   if [[ $variant == "-" ]]; then  # regular package (not an extra)
     pip_install_pkg="."
     dockerfile="$TEMPDIR/Dockerfile"
-    DEPS_LOG_FILE="dependencies.log"
+    DEPS_LOG_FNAME="dependencies.log"
   else
     pip_install_pkg=".[$variant]"
     dockerfile="$TEMPDIR/Dockerfile_$variant"
-    DEPS_LOG_FILE="dependencies-${variant}.log"
+    DEPS_LOG_FNAME="dependencies-${variant}.log"
   fi
 
   # make an ad-hoc dockerfile
@@ -42,13 +42,13 @@ CMD []
 EOF
 
   # and build it
-  image="gen-$( basename $DEPS_LOG_FILE ):local"
+  image="gen-$( basename $DEPS_LOG_FNAME ):local"
   docker build -t $image --file $dockerfile .
 
   # generate deps!
   $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
     $image \
-    $DEPS_LOG_FILE \
+    $REPO_PATH/$DEPS_LOG_FNAME \
     "from \`pip install $pip_install_pkg\`" \
     &
 
