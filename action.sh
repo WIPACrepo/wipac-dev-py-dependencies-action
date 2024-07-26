@@ -54,9 +54,11 @@ print(f"{max(all_matches)[0]}.{max(all_matches)[1]}")
 
 echo $PACKAGE_MAX_PYTHON_VERSION
 
+# detect if user supplied image(s)
+export IMAGES_TO_DEP=$( docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}' )
 
-# Build
-if [ -f $REPO_PATH/Dockerfile ]; then
+# generate
+if [ ! -z "$IMAGES_TO_DEP" ]; then
   # from Dockerfile(s)...
   $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-from-user-docker-images.sh
 else
