@@ -22,9 +22,12 @@ fi
 
 # get images to dep
 images_to_dep=$(docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}')
-if [ -f $REPO_PATH/Dockerfile* ] && [ -z $images_to_dep ]; then
-    # TODO: compare counts of files vs images, yes not perfect (considering build args) but moderately effective
-    echo "ERROR: 'Dockerfile*' found but no pre-built Docker images (with tag='$DOCKER_TAG_TO_DEP') were provided"
+
+# compare counts of dockerfiles vs images, yes not perfect (considering build args) but moderately effective
+n_images=$( echo "$images_to_dep" | wc -l )
+n_dockerfiles=$( find $REPO_PATH -name "Dockerfile*" -printf '.' | wc -m )
+if (( n_images > n_dockerfiles )); then
+    echo "ERROR: $n_dockerfiles 'Dockerfile*' files found but $n_images pre-built Docker images (with tag='$DOCKER_TAG_TO_DEP') were provided"
     exit 1
 fi
 
