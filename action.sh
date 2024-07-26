@@ -3,10 +3,22 @@ sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 echo "$( basename "$0" )..." && echo
 set -ex
 
+########################################################################
+#
+# Generate dependencies-*.log file(s)
+#
+########################################################################
+
 ls $REPO_PATH
+
+########################################################################
+
 
 # env vars
 export PACKAGE_NAME=$(python3 $GITHUB_ACTION_PATH/utils/get_package_name.py .)
+
+
+########################################################################
 
 
 # grab local copy to avoid path mangling -- replace when https://github.com/WIPACrepo/wipac-dev-py-dependencies-action/issues/6
@@ -54,15 +66,36 @@ print(f"{max(all_matches)[0]}.{max(all_matches)[1]}")
 
 echo $PACKAGE_MAX_PYTHON_VERSION
 
-# detect if user supplied image(s)
-export IMAGES_TO_DEP=$( docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}' )
 
+########################################################################
+# Dockerfile / docker image logic
+
+
+# detect if user supplied image(s)
+IMAGES_TO_DEP=$( docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}' )
+
+# compare counts of dockerfiles vs images, yes not perfect (considering build args) but moderately effective
+if [ -z "$IMAGES_TO_DEP" ]; then
+    n_images=0
+else
+    n_images=$( echo "$IMAGES_TO_DEP" | wc -l )
+fi
+n_dockerfiles=$( find $REPO_PATH -name "Dockerfile*" -printf '.' | wc -m )  # recursive
+if (( n_dockerfiles > n_images )); then
+    echo "ERROR: $n_dockerfiles 'Dockerfile*' file(s) found but $n_images pre-built Docker image(s) with tag='$DOCKER_TAG_TO_DEP' were provided"
+    exit 1
+fi
+
+
+########################################################################
 # generate
+
 if [ ! -z "$IMAGES_TO_DEP" ]; then
   # from Dockerfile(s)...
+  export IMAGES_TO_DEP
   $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-from-user-docker-images.sh
 else
-  # from setup.cfg...
+  # from python package...
   $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-from-repo-python-pkg.sh
 fi
 

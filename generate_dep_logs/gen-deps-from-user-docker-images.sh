@@ -29,14 +29,6 @@ if [[ $(grep -o "USER" $REPO_PATH/Dockerfile) ]]; then
     USE_PODMAN='--podman'
 fi
 
-# compare counts of dockerfiles vs images, yes not perfect (considering build args) but moderately effective
-n_images=$( echo "$IMAGES_TO_DEP" | wc -l )  # already known to not be empty (see above)
-n_dockerfiles=$( find $REPO_PATH -name "Dockerfile*" -printf '.' | wc -m )  # recursive
-if (( n_dockerfiles > n_images )); then
-    echo "ERROR: $n_dockerfiles 'Dockerfile*' file(s) found but $n_images pre-built Docker image(s) with tag='$DOCKER_TAG_TO_DEP' were provided"
-    exit 1
-fi
-
 # dep each image
 for image in $IMAGES_TO_DEP; do
     echo $image
