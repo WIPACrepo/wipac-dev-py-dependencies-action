@@ -4,14 +4,19 @@ GitHub Action Package for Automating Python-Package Dependency Management
 
 ## Overview
 
-This GitHub Action creates 1+ `dependencies*.log`-type file(s) for documenting dependency versions (ex: `dependencies.log`, `dependencies-dev.log`, `dependencies-docker-default.log`, etc.). These files are similar to `requirements*.txt`-type files, with the distinct difference that `dependencies*.log`-type files are not intended to be the source of truth, but rather, a reflection of the tested environment(s). If dependency-version pinning is wanted, it should be done by the user in the `setup.cfg`/`pyproject.toml` file.
+This GitHub Action creates 1+ `dependencies*.log` file(s) for documenting dependency versions (ex: `dependencies.log`, `dependencies-dev.log`, `dependencies-docker-default.log`, etc.). These files are similar to `requirements*.txt`-type files, with the distinct difference that *`dependencies*.log`-type files are a reflection of the built environment(s).* If dependency-version pinning is wanted, it should be done by the user in the `setup.cfg`/`pyproject.toml` file.
 
 ### Details
 
-The root directory's `dependencies.log` is overwritten/updated (by way of `pip freeze` + [`pipdeptree`](https://pypi.org/project/pipdeptree/)) along with dedicated `dependencies-EXTRA.log` files for each package "extra".
+This action uses `pip freeze` + [`pipdeptree`](https://pypi.org/project/pipdeptree/) to generate the `dependencies*.log` file(s). All current `dependencies*.log` files are deleted/overwritten/updated. By default, these file(s) are placed at the client repository's root. Setting the input arg `use_directory: true` will place the generated file(s) in `dependencies-logs/`.
 
-_However,_ if there is a `Dockerfile` present at the root of the target repo, a similar process occurs but
-_within_ a container built from the `Dockerfile`. This log file is named `dependencies-from-Dockerfile.log`. If there are other `Dockerfile`s present (ex: `Dockerfile-foo`), additional files are generated using the appropriate name (ex: `dependencies-from-Dockerfile-foo.log`).
+#### Generating from Python Package
+
+By default, this action generates a `dependencies*.log` file using the environment built from the client's Python package. In addition, a dedicated `dependencies-EXTRA.log` file is generated for each package "extra".
+
+#### Generating from Docker Images
+
+If the user supplies Docker image(s) tagged with `"py-dep-this"` (configurable by the input arg, `docker_tag_to_dep`). `dependencies*.log` file(s), named `dependencies-docker-{IMAGE_NAME}.log`, are generated from within each container.
 
 ### Example File
 
