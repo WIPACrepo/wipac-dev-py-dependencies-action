@@ -67,7 +67,7 @@ echo "$PACKAGE_MAX_PYTHON_VERSION"
 ########################################################################
 # Dockerfile / docker image logic
 
-# detect if user supplied image(s)
+# Detect if user supplied image(s)
 IMAGES_TO_DEP=$(docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}')
 
 # Check if any images exist
@@ -80,23 +80,23 @@ fi
 # Validate that each ignored Dockerfile actually exists
 IFS=',' read -r -a ignore_paths <<<"$DOCKERFILE_IGNORE_PATHS"
 for file in "${ignore_paths[@]}"; do
-    if [[ -n $file && ! -e $file ]]; then
+    if [[ -n $file && ! -f $file ]]; then
         echo "ERROR: Ignored file '$file' does not exist."
         exit 1
     fi
 done
 
 # Count non-ignored Dockerfiles in repo
-# -> append exclusion arguments
 find_cmd=(find "$REPO_PATH" -name "Dockerfile*")
+# -> append exclusion arguments
 for path in "${ignore_paths[@]}"; do
     if [[ -n $path ]]; then
-        find_cmd+=(! -path "$path")
+        find_cmd+=(-not -path "$path")
     fi
 done
 n_dockerfiles=$("${find_cmd[@]}" -printf '.' | wc -m)
 
-# compare counts, is everyone accounted for?
+# Compare counts, is everyone accounted for?
 if ((n_dockerfiles > n_images)); then
     echo "ERROR: $n_dockerfiles 'Dockerfile*' file(s) found but $n_images pre-built Docker image(s) with tag='$DOCKER_TAG_TO_DEP' were provided"
     exit 1
