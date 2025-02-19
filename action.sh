@@ -80,7 +80,7 @@ fi
 # Validate that each ignored Dockerfile actually exists
 IFS=',' read -r -a ignore_paths <<<"$DOCKERFILE_IGNORE_PATHS"
 for i in "${!ignore_paths[@]}"; do
-    ignore_paths["$i"]="$REPO_PATH/${ignore_paths[$i]}"
+    ignore_paths["$i"]="$REPO_PATH/$(echo "${ignore_paths[$i]}" | xargs)" # Trim spaces
 done
 echo "Ignoring the following Dockerfiles:"
 for file in "${ignore_paths[@]}"; do
