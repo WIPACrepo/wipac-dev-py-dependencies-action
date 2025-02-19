@@ -79,10 +79,14 @@ fi
 
 # Validate that each ignored Dockerfile actually exists
 IFS=',' read -r -a ignore_paths <<<"$DOCKERFILE_IGNORE_PATHS"
+echo "Ignoring the following Dockerfiles:"
 for file in "${ignore_paths[@]}"; do
-    if [[ -n $file && ! -f $file ]]; then
-        echo "::error:: Ignored file '$file' does not exist."
-        exit 1
+    if [[ -n $file ]]; then
+        echo "  - $file"
+        if [[ ! -f $file ]]; then
+            echo "::error:: Ignored Dockerfile '$file' does not exist."
+            exit 1
+        fi
     fi
 done
 
@@ -94,11 +98,22 @@ for path in "${ignore_paths[@]}"; do
         find_cmd+=(-not -path "$path")
     fi
 done
-n_dockerfiles=$("${find_cmd[@]}" -printf '.' | wc -m)
+echo "Searching for non-ignored Dockerfiles..."
+mapfile -t dockerfiles < <("${find_cmd[@]}")
+# -> echo found Dockerfiles
+if [[ ${#dockerfiles[@]} -gt 0 ]]; then
+    echo "Found the following Dockerfiles:"
+    for df in "${dockerfiles[@]}"; do
+        echo "  - $df"
+    done
+else
+    echo "No Dockerfiles found."
+fi
+n_good_dockerfiles=${#dockerfiles[@]}
 
 # Compare counts, is everyone accounted for?
-if ((n_dockerfiles > n_images)); then
-    echo "::error:: $n_dockerfiles 'Dockerfile*' file(s) found but $n_images pre-built Docker image(s) with tag='$DOCKER_TAG_TO_DEP' were provided"
+if ((n_good_dockerfiles > n_images)); then
+    echo "::error:: $n_good_dockerfiles 'Dockerfile*' file(s) found but $n_images pre-built Docker image(s) with tag='$DOCKER_TAG_TO_DEP' were provided"
     exit 1
 fi
 
