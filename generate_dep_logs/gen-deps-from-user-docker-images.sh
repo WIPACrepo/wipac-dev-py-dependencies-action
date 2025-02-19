@@ -1,6 +1,7 @@
 #!/bin/bash
+set -euo pipefail
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-echo "$( basename "$0" )..." && echo
+echo "$(basename "$0")..." && echo
 set -ex
 
 ########################################################################
@@ -14,7 +15,7 @@ ls $REPO_PATH
 ########################################################################
 
 if [ -z "$IMAGES_TO_DEP" ]; then
-    echo "ERROR: 'IMAGES_TO_DEP' was not given or is empty ('$IMAGES_TO_DEP')"
+    echo "::error:: 'IMAGES_TO_DEP' was not given or is empty ('$IMAGES_TO_DEP')"
     exit 2
 fi
 
@@ -34,8 +35,8 @@ for image in $IMAGES_TO_DEP; do
     echo $image
     $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
         $image \
-        "$REPO_PATH/dependencies-docker-$( echo $image | cut -d ":" -f 1 | tr '/' '-' ).log" \
-        "within a container using the user-supplied image '$( echo $image | cut -d ":" -f 1 )'" \
+        "$REPO_PATH/dependencies-docker-$(echo $image | cut -d ":" -f 1 | tr '/' '-').log" \
+        "within a container using the user-supplied image '$(echo $image | cut -d ":" -f 1)'" \
         $USE_PODMAN
 done
 

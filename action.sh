@@ -81,7 +81,7 @@ fi
 IFS=',' read -r -a ignore_paths <<<"$DOCKERFILE_IGNORE_PATHS"
 for file in "${ignore_paths[@]}"; do
     if [[ -n $file && ! -f $file ]]; then
-        echo "ERROR: Ignored file '$file' does not exist."
+        echo "::error:: Ignored file '$file' does not exist."
         exit 1
     fi
 done
@@ -98,7 +98,7 @@ n_dockerfiles=$("${find_cmd[@]}" -printf '.' | wc -m)
 
 # Compare counts, is everyone accounted for?
 if ((n_dockerfiles > n_images)); then
-    echo "ERROR: $n_dockerfiles 'Dockerfile*' file(s) found but $n_images pre-built Docker image(s) with tag='$DOCKER_TAG_TO_DEP' were provided"
+    echo "::error:: $n_dockerfiles 'Dockerfile*' file(s) found but $n_images pre-built Docker image(s) with tag='$DOCKER_TAG_TO_DEP' were provided"
     exit 1
 fi
 

@@ -1,6 +1,7 @@
 #!/bin/bash
+set -euo pipefail
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-echo "$( basename "$0" )..." && echo
+echo "$(basename "$0")..." && echo
 set -ex
 
 ########################################################################
@@ -24,8 +25,8 @@ else
 fi
 
 # VALIDATE ARGS
-if [ -z "$(docker images -q $DOCKER_IMAGE 2> /dev/null)" ]; then
-    echo "ERROR: image not found: $DOCKER_IMAGE"
+if [ -z "$(docker images -q $DOCKER_IMAGE 2>/dev/null)" ]; then
+    echo "::error:: image not found: $DOCKER_IMAGE"
     exit 2
 fi
 
@@ -36,9 +37,8 @@ TEMPDIR=$(mktemp -d) && trap 'rm -rf "$TEMPDIR"' EXIT
 cp $GITHUB_ACTION_PATH/generate_dep_logs/pip-freeze-tree.sh $TEMPDIR
 chmod +x $TEMPDIR/pip-freeze-tree.sh
 
-
 # build & generate
-if [[ $* == *--podman* ]]; then  # look for flag anywhere in args
+if [[ $* == *--podman* ]]; then # look for flag anywhere in args
     podman pull docker-daemon:$DOCKER_IMAGE
     podman images
     # 'uid' & 'gid' were added in https://github.com/containers/podman/releases/tag/v4.3.0
