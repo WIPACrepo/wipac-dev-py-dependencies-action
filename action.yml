@@ -18,6 +18,10 @@ inputs:
     description: 'Whether to put all generated dep-log files, relative to the project/repo directory; (true/false)'
     required: false
     default: "false"
+  dockerfile_ignore_paths:
+    description: 'A comma-delimited list of Dockerfile* filepaths to skip'
+    required: false
+    default: ""
 
 
 # outputs:
@@ -34,6 +38,7 @@ runs:
 
     - name: Is this the most recent commit? It won't be if the action was reran
       run: |
+        set -euo pipefail
         # check git status
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         git fetch &> /dev/null
@@ -46,6 +51,7 @@ runs:
     - name: Git config
       if: env.IS_GIT_BEHIND != 'true'
       run: |
+        set -euo pipefail
         # git config
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         git config user.name ${{ inputs.git_committer_name }}
@@ -55,6 +61,7 @@ runs:
     - name: pip
       if: env.IS_GIT_BEHIND != 'true'
       run: |
+        set -euo pipefail
         sudo apt-get update
         pip3 install -r ${{ github.action_path }}/requirements.txt
       shell: bash
@@ -67,6 +74,7 @@ runs:
         DOCKER_TAG_TO_DEP: ${{ inputs.docker_tag_to_dep }}
         DEST_DIRECTORY_IF_WANTED: dependencies-logs/
       run: |
+        set -euo pipefail
         # build dependencies.log (and commit)
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
@@ -89,6 +97,7 @@ runs:
         
         # run script
         export REPO_PATH=$(pwd)
+        export DOCKERFILE_IGNORE_PATHS="${{ inputs.dockerfile_ignore_paths }}"
         /bin/bash $GITHUB_ACTION_PATH/action.sh
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
@@ -106,6 +115,7 @@ runs:
     - name: Push changes
       if: env.IS_GIT_BEHIND != 'true'
       run: |
+        set -euo pipefail
         # push changes (if needed)
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         status=`git status 2>&1 | tee`
