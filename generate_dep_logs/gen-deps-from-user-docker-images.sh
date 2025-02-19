@@ -15,7 +15,7 @@ ls $REPO_PATH
 ########################################################################
 
 if [ -z "$IMAGES_TO_DEP" ]; then
-    echo "::error:: 'IMAGES_TO_DEP' was not given or is empty ('$IMAGES_TO_DEP')"
+    echo "::error::'IMAGES_TO_DEP' was not given or is empty ('$IMAGES_TO_DEP')"
     exit 2
 fi
 

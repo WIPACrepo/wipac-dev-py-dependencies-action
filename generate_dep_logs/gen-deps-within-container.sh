@@ -26,7 +26,7 @@ fi
 
 # VALIDATE ARGS
 if [ -z "$(docker images -q $DOCKER_IMAGE 2>/dev/null)" ]; then
-    echo "::error:: image not found: $DOCKER_IMAGE"
+    echo "::error::image not found: $DOCKER_IMAGE"
     exit 2
 fi
 
