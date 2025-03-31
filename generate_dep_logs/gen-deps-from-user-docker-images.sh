@@ -28,6 +28,8 @@ if [[ $(grep -o "USER" $REPO_PATH/Dockerfile) ]]; then
     $GITHUB_ACTION_PATH/utils/install-podman.sh
     podman --version
     USE_PODMAN='--podman'
+else
+    USE_PODMAN=""
 fi
 
 # dep each image
