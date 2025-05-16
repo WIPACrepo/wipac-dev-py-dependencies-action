@@ -29,8 +29,10 @@ def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str
         commit_ref = f"origin/{branch}"
 
     # List all files in that commit
+    args = ["git", "ls-tree", "-r", "--name-only", commit_ref]
+    print(f"looking at {args}", file=sys.stderr)
     result = subprocess.run(
-        ["git", "ls-tree", "-r", "--name-only", commit_ref],
+        args,
         stdout=subprocess.PIPE,
         text=True,
         check=True,
@@ -47,6 +49,7 @@ def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str
             )
             return out.stdout
 
+    print("-> did not find file", file=sys.stderr)
     return None
 
 
