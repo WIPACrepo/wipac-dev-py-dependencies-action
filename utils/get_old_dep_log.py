@@ -13,6 +13,13 @@ def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str
 
     # Resolve the desired commit hash
     if n_commits_old > 0:
+        print(f"-> fetching origin/{branch}", file=sys.stderr)
+        subprocess.run(
+            ["git", "fetch", "origin", branch, "--deepen", str(n_commits_old + 1)],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         commit_ref = subprocess.run(
             [
                 "git",
