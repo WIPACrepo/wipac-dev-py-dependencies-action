@@ -103,11 +103,11 @@ runs:
         echo "##[endgroup]"
       shell: bash
 
-    - name: Dump diffs to console and save artifacts
+    - name: Dump diffs to console
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
-        # step: Dump diffs to console and save artifacts
+        # step: Dump diffs to console
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
         mkdir -p artifacts
@@ -124,6 +124,7 @@ runs:
             echo " "
 
             cp "$file" "artifacts/$fname"
+            diff_file="artifacts/${fname%.log}.diff"
 
             # find the old file and diff it
             if ! python3 \
@@ -132,15 +133,18 @@ runs:
                 > "$old_file"
             then
                 # no old file?
+                echo "<new file>" > "$diff_file"
                 echo "::notice::file is new (no old version)"
                 cat "$file"
                 continue
             else
                 # show diff
                 echo "::notice::Diff: $file"
-                if ! diff --color=always -u "$old_file" "$file" | tee "artifacts/${fname%.log}.diff"; then
-                    echo "::notice::diff above for $fname"
+                if ! diff -u "$old_file" "$file" > "$diff_file"; then
+                    # also print with color, but don't save ANSI to file
+                    diff --color=always -u "$old_file" "$file" || true
                 else
+                    echo "<no changes>" > "$diff_file"
                     echo "::notice::$fname is unchanged"
                 fi
             fi
