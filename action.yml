@@ -2,22 +2,10 @@ name: 'WIPAC Dev Py Dependencies'
 description: 'GitHub Action Package for Automating Python-Package Dependency Management'
 
 inputs:
-  git_committer_name:
-    description: 'The name used for "git config user.name"'
-    required: false
-    default: github-actions
-  git_committer_email:
-    description: 'The email used for "git config user.email"'
-    required: false
-    default: github-actions@github.com
   docker_tag_to_dep:
-    description: 'The email used for "git config user.email"'
+    description: 'The tag attached to each docker image demarcating it for dep-logging!'
     required: false
     default: py-dep-this
-  use_directory:
-    description: 'Whether to put all generated dep-log files, relative to the project/repo directory; (true/false)'
-    required: false
-    default: "false"
   dockerfile_ignore_paths:
     description: 'A comma-delimited list of Dockerfile* filepaths to skip'
     required: false
