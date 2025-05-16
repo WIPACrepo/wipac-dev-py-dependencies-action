@@ -118,7 +118,7 @@ runs:
             }
 
             echo "::group::Diff: $file"
-            if ! diff -u "$tmp_ref" "$file"; then
+            if ! diff --color=always -u "$tmp_ref" "$file"; then
                 echo "::notice::Diff above for $file vs $default_branch:$match_path"
             else
                 echo "::notice::$fname is unchanged from $default_branch"
