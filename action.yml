@@ -88,12 +88,11 @@ runs:
         
         shopt -s globstar nullglob
         for file in **/dependencies*.log; do
-            echo ""
-            echo ""
-            echo ""
-            echo ""
+            echo " "
+            echo " "
+            echo " "
             echo "==> $file <=="
             cat "$file"
         done
-        echo
+        echo " "
       shell: bash
