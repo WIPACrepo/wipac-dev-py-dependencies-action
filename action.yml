@@ -27,11 +27,13 @@ runs:
         # step: Figure Project's Max Py Version
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
+        echo "##[group]installs"
         sudo apt-get update
         python -m venv action_venv
         . action_venv/bin/activate
         pip3 install wipac-dev-tools[semver]
-
+        echo "##[endgroup]"
+        
         MAX_PY=$(python -c "
         from wipac_dev_tools import semver_parser_tools
 
@@ -72,10 +74,13 @@ runs:
         # remove any old ones, then regenerate only what's needed
         (find . -name "dependencies*.log" -type f -print0 | xargs -0 rm) || true
         
-        # run script
         export REPO_PATH=$(pwd)
         export DOCKERFILE_IGNORE_PATHS="${{ inputs.dockerfile_ignore_paths }}"
+        
+        # run script
+        echo "##[group]generating dep logs"
         /bin/bash $GITHUB_ACTION_PATH/action.sh
+        echo "##[endgroup]"
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
 
@@ -85,10 +90,15 @@ runs:
       run: |
         # step: Fetch default branch
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+        
+        echo "##[group]fetching default branch"
+        
         default_branch="$(git remote show origin | awk '/HEAD branch/ {print $NF}')"
         echo "Default branch is $default_branch"
         git fetch origin "$default_branch":"refs/remotes/origin/$default_branch"
         echo "DEFAULT_BRANCH=$default_branch" >> "$GITHUB_ENV"
+        
+        echo "##[endgroup]"
       shell: bash
 
     - name: Dump diffs to console
