@@ -23,11 +23,13 @@ fi
 
 # install podman if needed... (grep -o -> 1 if found)
 if [[ $(grep -o "USER" $REPO_PATH/Dockerfile) ]]; then
+    echo "##[group]podman install"
     podman --version
     # 'uid' & 'gid' were added in https://github.com/containers/podman/releases/tag/v4.3.0
     $GITHUB_ACTION_PATH/utils/install-podman.sh
     podman --version
     USE_PODMAN='--podman'
+    echo "##[endgroup]"
 else
     USE_PODMAN=""
 fi
