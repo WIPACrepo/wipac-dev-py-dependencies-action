@@ -81,21 +81,48 @@ runs:
 
       shell: bash
 
-    - name: Dump to console
+    - name: Dump diffs to console
       run: |
-        # step: Dump to console
+        # step: Dump diffs to console
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         
+        # echo "::notice::====> $file <$(printf '=%.0s' $(seq 1 $((72 - 7 - ${#file}))))"
+        
+        
+        echo "##[group]Starting diff against default branch"
+
+        default_branch="$(git remote show origin | awk '/HEAD branch/ {print $NF}')"
+        echo "Default branch is '$default_branch'"
+
         shopt -s globstar nullglob
         for file in **/dependencies*.log; do
-            echo " "
-            echo " "
-            echo " "
-            echo " "
-            echo "::notice::====> $file <$(printf '=%.0s' $(seq 1 $((72 - 7 - ${#file}))))"
-            echo " "
-            # 'cat' file but prefix every line with ::notice::
-            while IFS= read -r line; do echo "::notice::$line"; done < "$file"
+            fname=$(basename "$file")
+        
+            # Find first file in default branch with same basename
+            match_path=$(git ls-tree -r --name-only "$default_branch" | grep "/$fname$" | head -n1 || true)
+            if [[ -z "$match_path" ]]; then
+                echo "::notice::No matching file for '$fname' in $default_branch"
+                cat "$file"
+                continue
+            fi
+
+            echo "====> Diffing $file with $default_branch:$match_path <===="
+            tmp_ref="/tmp/old_$fname"
+            git show "$default_branch:$match_path" > "$tmp_ref" || {
+                echo "::warning::Failed to extract $match_path from $default_branch"
+                continue
+            }
+
+            # Unified diff output with GHA grouping
+            echo "::group::Diff: $file"
+            if ! diff -u "$tmp_ref" "$file"; then
+                echo "::notice::Diff above for $file vs $default_branch:$match_path"
+            else
+                echo "::notice::$fname is unchanged from $default_branch"
+            fi
+            echo "::endgroup::"
         done
-        echo " "
+
+        echo "##[endgroup]"
+
       shell: bash
