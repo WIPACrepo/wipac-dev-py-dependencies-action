@@ -56,8 +56,10 @@ runs:
       run: |
         # step: pip install reqs
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+        echo "##[group]pip installs"
         sudo apt-get update
         pip3 install -r ${{ github.action_path }}/requirements.txt
+        echo "##[endgroup]"
       shell: bash
 
     - name: Build dependencies.log (and commit)
