@@ -138,7 +138,7 @@ runs:
             else
                 # show diff
                 echo "::notice::Diff: $file"
-                if ! diff -u "$old_file" "$file" > "artifacts/${fname%.log}.diff"; then
+                if ! diff --color=always -u "$old_file" "$file" | tee "artifacts/${fname%.log}.diff"; then
                     echo "::notice::diff above for $fname"
                 else
                     echo "::notice::$fname is unchanged"
