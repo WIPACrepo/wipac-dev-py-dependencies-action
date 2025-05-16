@@ -41,6 +41,10 @@ def get_file_from_release(repo: str, filename: str, token: str) -> str | None:
         return None
 
     for asset in r.json().get("assets", []):
+        print(
+            f"{asset=}",
+            file=sys.stderr,
+        )
         if asset.get("name") == filename:
             dl_url = asset.get("browser_download_url")
             dl_r = requests.get(dl_url, headers=headers)
@@ -73,14 +77,24 @@ def main():
         sys.exit(1)
 
     contents = get_file_from_git(args.branch, args.filename)
-    if contents is None:
+    if contents:
+        print(
+            f"::notice::found file '{args.filename}' in '{args.branch}'",
+            file=sys.stderr,
+        )
+    else:
         print(
             f"::notice::{args.filename} not in origin/{args.branch}, "
             f"trying release asset",
             file=sys.stderr,
         )
         contents = get_file_from_release(args.repo, args.filename, token)
-        if contents is None:
+        if contents:
+            print(
+                f"::notice::found file '{args.filename}' in release asset",
+                file=sys.stderr,
+            )
+        else:
             print(
                 f"::notice::No matching release asset for {args.filename}",
                 file=sys.stderr,
@@ -88,6 +102,7 @@ def main():
             sys.exit(2)
 
     print(contents)
+    sys.exit(99)
 
 
 if __name__ == "__main__":
