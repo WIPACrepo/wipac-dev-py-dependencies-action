@@ -22,6 +22,16 @@ runs:
   steps:
     - uses: actions/setup-python@v4
 
+    - name: Check if old files need to be removed
+      run: |
+        # step: Check if old files need to be removed
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+        if find . -name "dependencies*.log" -type f | grep -q .; then
+            echo "::error::dependencies*.log must be manually deleted -- v3 doesn't use these files"
+            exit 1
+        fi
+      shell: bash
+
     - name: Figure Project's Max Py Version
       run: |
         # step: Figure Project's Max Py Version
@@ -72,9 +82,6 @@ runs:
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         # build dependencies.log (and commit)
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
-        
-        # remove any old ones, then regenerate only what's needed
-        (find . -name "dependencies*.log" -type f -print0 | xargs -0 rm) || true
         
         export REPO_PATH=$(pwd)
         export DOCKERFILE_IGNORE_PATHS="${{ inputs.dockerfile_ignore_paths }}"
