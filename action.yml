@@ -98,36 +98,37 @@ runs:
         # step: Dump diffs to console
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
-        echo "##[group]Starting diff against base or release"
-
         shopt -s globstar nullglob
         for file in **/dependencies*.log; do
             fname=$(basename "$file")
-            tmp_ref=$(mktemp)
+            old_file=$(mktemp)
         
-            echo "::group::Diff: $file"
+            echo " "
+            echo " "
+            echo " "
+            echo "====> $file <$(printf '=%.0s' $(seq 1 $((72 - 7 - ${#file}))))"
+            echo " "
 
             # find the old file
             if ! python3 \
                 "${{ github.action_path }}/utils/get_old_dep_log.py" \
                 "$fname" "$DEFAULT_BRANCH" "${{ github.repository }}" \
-                > "$tmp_ref"
+                > "$old_file"
             then
                 echo "::notice::file is new (no old version)"
-                echo "::endgroup::"
+                cat "$file"
                 continue
             fi
 
             # show diff
-            if ! diff --color=always -u "$tmp_ref" "$file"; then
-                echo "::notice::Diff above for $file"
+            echo "::notice::Diff: $file"
+            if ! diff --color=always -u "$old_file" "$file"; then
+                echo "::notice::diff above for $fname"
             else
                 echo "::notice::$fname is unchanged"
             fi
-            echo "::endgroup::"
         
         done
-
-        echo "##[endgroup]"
+        echo " "
 
       shell: bash
