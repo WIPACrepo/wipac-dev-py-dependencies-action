@@ -88,9 +88,7 @@ runs:
         
         shopt -s globstar nullglob
         for file in **/dependencies*.log; do
-            echo " "
-            echo " "
-            echo " "
+            for _ in {1..8}; do echo " "; done
             echo "==> $file <=="
             cat "$file"
         done
