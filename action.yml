@@ -157,6 +157,8 @@ runs:
             fi
         done
         echo " "
+        
+        exit 1  # TODO: REMOVE
 
       shell: bash
 

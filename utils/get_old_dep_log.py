@@ -8,25 +8,45 @@ import sys
 import requests
 
 
-def get_file_from_git(branch: str, filename: str) -> str | None:
-    try:
-        result = subprocess.run(
-            ["git", "ls-tree", "-r", "--name-only", f"origin/{branch}"],
+def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str | None:
+    """Find the file in the branch, optionally at an old commit."""
+
+    # Resolve the desired commit hash
+    if n_commits_old > 0:
+        commit_ref = subprocess.run(
+            [
+                "git",
+                "rev-list",
+                "--max-count=1",
+                f"origin/{branch}",
+                f"--skip={n_commits_old}",
+            ],
             stdout=subprocess.PIPE,
             text=True,
             check=True,
-        )
-        for line in result.stdout.splitlines():
-            if line.endswith(f"/{filename}"):
-                out = subprocess.run(
-                    ["git", "show", f"origin/{branch}:{line}"],
-                    stdout=subprocess.PIPE,
-                    text=True,
-                    check=True,
-                )
-                return out.stdout
-    except subprocess.CalledProcessError:
-        pass
+        ).stdout.strip()
+    else:
+        commit_ref = f"origin/{branch}"
+
+    # List all files in that commit
+    result = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", commit_ref],
+        stdout=subprocess.PIPE,
+        text=True,
+        check=True,
+    )
+
+    # Search for a match by basename
+    for line in result.stdout.splitlines():
+        if line.endswith(f"/{filename}"):
+            out = subprocess.run(
+                ["git", "show", f"{commit_ref}:{line}"],
+                stdout=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            return out.stdout
+
     return None
 
 
@@ -53,7 +73,7 @@ def get_file_from_release(repo: str, filename: str, token: str) -> str | None:
     return None
 
 
-def main():
+def main() -> str:
     parser = argparse.ArgumentParser(
         description="Get an old dependency log file from git or release."
     )
@@ -76,34 +96,30 @@ def main():
         print("::error::GITHUB_TOKEN is not set", file=sys.stderr)
         sys.exit(1)
 
-    contents = get_file_from_git(args.branch, args.filename)
+    # look for file
+    contents = get_file_from_release(args.repo, args.filename, token)
     if contents:
         print(
-            f"::notice::found file '{args.filename}' in '{args.branch}'",
+            f"::notice::found file '{args.filename}' in release asset",
             file=sys.stderr,
         )
-    else:
-        print(
-            f"::notice::{args.filename} not in origin/{args.branch}, "
-            f"trying release asset",
-            file=sys.stderr,
-        )
-        contents = get_file_from_release(args.repo, args.filename, token)
+        return contents
+
+    # back-up plan: look for files in git
+    for n in range(25):  # that's probably deep enough
+        contents = get_file_from_git(args.branch, args.filename, n_commits_old=n)
         if contents:
             print(
-                f"::notice::found file '{args.filename}' in release asset",
+                f"::notice::found file '{args.filename}' in '{args.branch}'",
                 file=sys.stderr,
             )
-        else:
-            print(
-                f"::notice::No matching release asset for {args.filename}",
-                file=sys.stderr,
-            )
-            sys.exit(2)
+            return contents
 
-    print(contents)
-    sys.exit(99)
+    # not to be found
+    print(f"::notice::could not find file '{args.filename}'", file=sys.stderr)
+    sys.exit(2)
 
 
 if __name__ == "__main__":
-    main()
+    contents = main()
+    print(contents)
