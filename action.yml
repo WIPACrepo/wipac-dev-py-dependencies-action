@@ -109,7 +109,7 @@ runs:
 
             # find the old file
             if ! python3 \
-                "${{ github.action_path }}/get_old_dep_log.py" \
+                "${{ github.action_path }}/utils/get_old_dep_log.py" \
                 "$fname" "$DEFAULT_BRANCH" "${{ github.repository }}" \
                 > "$tmp_ref"
             then
