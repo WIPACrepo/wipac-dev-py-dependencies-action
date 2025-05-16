@@ -103,44 +103,55 @@ runs:
         echo "##[endgroup]"
       shell: bash
 
-    - name: Dump diffs to console
+    - name: Dump diffs to console and save artifacts
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
-        # step: Dump diffs to console
+        # step: Dump diffs to console and save artifacts
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        mkdir -p artifacts
 
         shopt -s globstar nullglob
         for file in **/dependencies*.log; do
             fname=$(basename "$file")
             old_file=$(mktemp)
-        
+
             echo " "
             echo " "
             echo " "
             echo "====> $file <$(printf '=%.0s' $(seq 1 $((72 - 7 - ${#file}))))"
             echo " "
 
-            # find the old file
+            cp "$file" "artifacts/$fname"
+
+            # find the old file and diff it
             if ! python3 \
                 "${{ github.action_path }}/utils/get_old_dep_log.py" \
                 "$fname" "$DEFAULT_BRANCH" "${{ github.repository }}" \
                 > "$old_file"
             then
+                # no old file?
                 echo "::notice::file is new (no old version)"
                 cat "$file"
                 continue
-            fi
-
-            # show diff
-            echo "::notice::Diff: $file"
-            if ! diff --color=always -u "$old_file" "$file"; then
-                echo "::notice::diff above for $fname"
             else
-                echo "::notice::$fname is unchanged"
+                # show diff
+                echo "::notice::Diff: $file"
+                if ! diff -u "$old_file" "$file" > "artifacts/${fname%.log}.diff"; then
+                    echo "::notice::diff above for $fname"
+                else
+                    echo "::notice::$fname is unchanged"
+                fi
             fi
-        
         done
         echo " "
 
       shell: bash
+
+    - name: Upload as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-logs
+        path: artifacts/
+        if-no-files-found: ignore
