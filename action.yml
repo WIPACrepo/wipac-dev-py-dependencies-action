@@ -92,37 +92,42 @@ runs:
       shell: bash
 
     - name: Dump diffs to console
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         # step: Dump diffs to console
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
-        echo "##[group]Starting diff against default branch"
+        echo "##[group]Starting diff against base or release"
 
         shopt -s globstar nullglob
         for file in **/dependencies*.log; do
             fname=$(basename "$file")
+            tmp_ref=$(mktemp)
+        
+            echo "::group::Diff: $file"
 
-            old_dep_log_file=$(git ls-tree -r --name-only "origin/$DEFAULT_BRANCH" | grep "/$fname$" | head -n1 || true)
-            if [[ -z "$old_dep_log_file" ]]; then
-                echo "::notice::No matching file for '$fname' in $DEFAULT_BRANCH"
-                cat "$file"
+            # find the old file
+            if ! python3 \
+                "${{ github.action_path }}/get_old_dep_log.py" \
+                "$fname" "$DEFAULT_BRANCH" "${{ github.repository }}" \
+                > "$tmp_ref"
+            then
+                echo "::notice::file is new (no old version)"
+                echo "::endgroup::"
                 continue
             fi
 
-            echo "====> Diffing $file with $DEFAULT_BRANCH:$old_dep_log_file <===="
-            tmp_ref="/tmp/old_$fname"
-            git show "origin/$DEFAULT_BRANCH:$old_dep_log_file" > "$tmp_ref" || {
-                echo "::warning::Failed to extract $old_dep_log_file from $DEFAULT_BRANCH"
-                continue
-            }
-
-            echo "::group::Diff: $file"
+            # show diff
             if ! diff --color=always -u "$tmp_ref" "$file"; then
-                echo "::notice::Diff above for $file vs $DEFAULT_BRANCH:$old_dep_log_file"
+                echo "::notice::Diff above for $file"
             else
-                echo "::notice::$fname is unchanged from $DEFAULT_BRANCH"
+                echo "::notice::$fname is unchanged"
             fi
             echo "::endgroup::"
+        
         done
+
         echo "##[endgroup]"
+
       shell: bash
