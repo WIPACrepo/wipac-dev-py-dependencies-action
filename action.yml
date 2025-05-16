@@ -92,7 +92,8 @@ runs:
             echo " "
             echo " "
             echo " "
-            echo "==> $file <=="
+            echo "====> $file <$(printf '=%.0s' $(seq 1 $((80 - 7 - ${#file}))))"
+            echo " "
             cat "$file"
         done
         echo " "
