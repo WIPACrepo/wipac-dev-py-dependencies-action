@@ -60,10 +60,39 @@ runs:
         git config user.email ${{ inputs.git_committer_email }}
       shell: bash
 
-    - name: pip
+    - name: Figure Project's Max Py Version
       if: env.IS_GIT_BEHIND != 'true'
       run: |
-        # step: pip
+        # step: Figure Project's Max Py Version
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        sudo apt-get update
+        python -m venv action_venv
+        . action_venv/bin/activate
+        pip3 install wipac-dev-tools[semver]
+
+        MAX_PY=$(python -c "
+        from wipac_dev_tools import semver_parser_tools
+
+        top_python = semver_parser_tools.get_latest_py3_release()
+        all_matches = semver_parser_tools.list_all_majmin_versions(
+          major=top_python[0],
+          semver_range=semver_parser_tools.get_py_semver_range_for_project(),
+          max_minor=top_python[1],
+        )
+
+        print(f'{max(all_matches)[0]}.{max(all_matches)[1]}')
+        ")
+        echo "detected project's max supported python: $MAX_PY"
+        
+        rm -rf action_venv/
+        echo "PACKAGE_MAX_PYTHON_VERSION=$MAX_PY" >> "$GITHUB_ENV"
+      shell: bash
+
+    - name: pip install reqs
+      if: env.IS_GIT_BEHIND != 'true'
+      run: |
+        # step: pip install reqs
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         sudo apt-get update
         pip3 install -r ${{ github.action_path }}/requirements.txt

@@ -17,36 +17,6 @@ ls "$REPO_PATH"
 export PACKAGE_NAME=$(python3 $GITHUB_ACTION_PATH/utils/get_package_name.py .)
 
 ########################################################################
-
-# grab local copy to avoid path mangling -- replace when https://github.com/WIPACrepo/wipac-dev-py-dependencies-action/issues/6
-pip install requests semantic-version python-dateutil
-temp_dir=$(mktemp -d) && cd $temp_dir && trap 'rm -rf $temp_dir' EXIT
-wget https://raw.githubusercontent.com/WIPACrepo/wipac-dev-tools/main/wipac_dev_tools/semver_parser_tools.py -O $temp_dir/semver_parser_tools_local.py
-
-# get python3 version (max from project)
-PACKAGE_MAX_PYTHON_VERSION=$(python -c '
-import os, re
-import semver_parser_tools_local as semver_parser_tools
-from pathlib import Path
-
-repo_path = Path(os.environ["REPO_PATH"])
-
-semver_range = semver_parser_tools.get_py_semver_range_for_project(repo_path)
-top_python = semver_parser_tools.get_latest_py3_release()
-
-all_matches = semver_parser_tools.list_all_majmin_versions(
-  major=top_python[0],
-  semver_range=semver_range,
-  max_minor=top_python[1],
-)
-
-print(f"{max(all_matches)[0]}.{max(all_matches)[1]}")
-')
-
-export PACKAGE_MAX_PYTHON_VERSION
-echo "$PACKAGE_MAX_PYTHON_VERSION"
-
-########################################################################
 # Dockerfile / docker image logic
 
 # Detect if user supplied image(s)
