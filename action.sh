@@ -28,7 +28,3 @@ else
     # from python package...
     "$GITHUB_ACTION_PATH"/generate_dep_logs/gen-deps-from-repo-python-pkg.sh
 fi
-
-########################################################################
-
-sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"

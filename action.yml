@@ -21,35 +21,8 @@ runs:
   using: "composite"
   steps:
     - uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'  # NOTE: update, someday. Also tests.yml
-
-    - name: Is this the most recent commit? It won't be if the action was reran
-      run: |
-        # step: Is this the most recent commit? It won't be if the action was reran
-        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        # check git status
-        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        git fetch &> /dev/null
-        if [[ $(git status -sb | grep behind) ]]; then
-          echo "IS_GIT_BEHIND=true" >> $GITHUB_ENV
-          echo "this commit is not the most recent on this branch -- rest of action will be skipped"
-        fi
-      shell: bash
-
-    - name: Git config
-      if: env.IS_GIT_BEHIND != 'true'
-      run: |
-        # step: Git config
-        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        # git config
-        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        git config user.name ${{ inputs.git_committer_name }}
-        git config user.email ${{ inputs.git_committer_email }}
-      shell: bash
 
     - name: Figure Project's Max Py Version
-      if: env.IS_GIT_BEHIND != 'true'
       run: |
         # step: Figure Project's Max Py Version
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -78,7 +51,6 @@ runs:
       shell: bash
 
     - name: pip install reqs
-      if: env.IS_GIT_BEHIND != 'true'
       run: |
         # step: pip install reqs
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -87,30 +59,14 @@ runs:
       shell: bash
 
     - name: Build dependencies.log (and commit)
-      if: env.IS_GIT_BEHIND != 'true'
       env:
         ACTION_REPOSITORY: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         GITHUB_ACTION_PATH: ${{ github.action_path }}
         DOCKER_TAG_TO_DEP: ${{ inputs.docker_tag_to_dep }}
-        DEST_DIRECTORY_IF_WANTED: dependencies-logs/
       run: |
         # step: Build dependencies.log (and commit)
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         # build dependencies.log (and commit)
-        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
-        
-        # append permissive line to .gitignore since *.log is commonly present
-        line='!dependencies*.log'
-        if [[ ! $(grep -F "$line" .gitignore) ]]; then
-          echo "" >> .gitignore
-          echo "" >> .gitignore
-          echo "# wipac-dev-py-setup-action" >> .gitignore
-          echo "$line" >> .gitignore
-          git add .gitignore
-          git commit -m "<bot> update .gitignore" || true  # okay if no change
-          tail .gitignore
-        fi
-        
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
         # remove any old ones, then regenerate only what's needed
@@ -122,30 +78,19 @@ runs:
         /bin/bash $GITHUB_ACTION_PATH/action.sh
         
         set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
-        
-        if [[ $( echo "${{ inputs.use_directory }}" | awk '{print tolower($0)}' ) == "true" ]]; then
-            mkdir -p $DEST_DIRECTORY_IF_WANTED
-            find . -name "dependencies*.log" -type f -exec mv -i {} $DEST_DIRECTORY_IF_WANTED  \;
-        fi
-        
-        # Commit
-        git add .
-        git commit -m "<bot> update dependencies*.log files(s)" || true  # okay if no change
+
       shell: bash
 
-    - name: Push changes
-      if: env.IS_GIT_BEHIND != 'true'
+    - name: Dump to console
       run: |
-        # step: Push changes
+        # step: Dump to console
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        # push changes (if needed)
-        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        status=`git status 2>&1 | tee`
-        ahead=`echo -n "${status}" 2> /dev/null | grep "Your branch is ahead of" &> /dev/null; echo "$?"`
-        if [ "$ahead" -eq "1" ]; then
-          echo "no changes needed"
-          exit 0
-        fi
-        git push
-        echo "changes pushed"
+        
+        shopt -s globstar nullglob
+        for file in **/dependencies*.log; do
+            echo
+            echo "==> $file <=="
+            cat "$file"
+        done
+        echo
       shell: bash
