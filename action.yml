@@ -92,7 +92,7 @@ runs:
             echo " "
             echo " "
             echo " "
-            echo "====> $file <$(printf '=%.0s' $(seq 1 $((72 - 7 - ${#file}))))"
+            echo "::notice::====> $file <$(printf '=%.0s' $(seq 1 $((72 - 7 - ${#file}))))"
             echo " "
             # 'cat' file but prefix every line with ::notice::
             while IFS= read -r line; do echo "::notice::$line"; done < "$file"
