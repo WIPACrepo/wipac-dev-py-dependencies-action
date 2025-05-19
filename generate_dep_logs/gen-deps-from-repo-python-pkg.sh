@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "$( basename "$0" )..." && echo
 set -ex
@@ -48,7 +49,7 @@ EOF
   # generate deps!
   $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
     $image \
-    $REPO_PATH/$DEPS_LOG_FNAME \
+    "$DEPS_LOG_FNAME" \
     "from \`pip install $pip_install_pkg\`" \
     &
 

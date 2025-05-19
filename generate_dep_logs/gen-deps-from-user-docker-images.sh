@@ -39,7 +39,7 @@ for image in $IMAGES_TO_DEP; do
     echo $image
     $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
         $image \
-        "$REPO_PATH/dependencies-docker-$(echo $image | cut -d ":" -f 1 | tr '/' '-').log" \
+        "dependencies-docker-$(echo "$image" | cut -d ":" -f 1 | tr '/' '-').log" \
         "within a container using the user-supplied image '$(echo $image | cut -d ":" -f 1)'" \
         $USE_PODMAN
 done

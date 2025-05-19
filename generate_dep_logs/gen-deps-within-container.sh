@@ -16,11 +16,11 @@ ls $REPO_PATH
 
 # GET ARGS
 if [ -z "${1-}" ] || [ -z "${2-}" ] || [ -z "${3-}" ]; then
-    echo "Usage: gen-deps-within-container.sh DOCKER_IMAGE DEPS_LOG_FILE SUBTITLE [--podman]"
+    echo "Usage: gen-deps-within-container.sh DOCKER_IMAGE DEPS_LOG_FNAME SUBTITLE [--podman]"
     exit 1
 else
     DOCKER_IMAGE="$1"
-    DEPS_LOG_FILE="$2"
+    DEPS_LOG_FNAME="$2"
     SUBTITLE="$3"
 fi
 
@@ -63,6 +63,6 @@ fi
 ls $TEMPDIR
 
 # finally, move/overwrite the dep-log file that was generated above
-mv $TEMPDIR/deps.log "$STORE_LOGS_HERE/$DEPS_LOG_FILE"
+mv "$TEMPDIR/deps.log" "$STORE_LOGS_HERE/$DEPS_LOG_FNAME"
 
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
