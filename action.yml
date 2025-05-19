@@ -34,6 +34,9 @@ runs:
         STORE_LOGS_HERE="/tmp/py-dep-logs"
         mkdir -p $STORE_LOGS_HERE
         echo "STORE_LOGS_HERE=$STORE_LOGS_HERE" >> "$GITHUB_ENV"
+        
+        PY_DEP_LOG_FNAME_PREFIX="py-dependencies"
+        echo "PY_DEP_LOG_FNAME_PREFIX=$PY_DEP_LOG_FNAME_PREFIX" >> "$GITHUB_ENV"
       shell: bash
 
 

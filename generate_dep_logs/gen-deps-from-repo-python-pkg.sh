@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-echo "$( basename "$0" )..." && echo
+echo "$(basename "$0")..." && echo
 set -ex
 
 ########################################################################
@@ -22,36 +22,36 @@ TEMPDIR=$(mktemp -d) && trap 'rm -rf "$TEMPDIR"' EXIT
 
 # generate dependencies-*.log for each extras_require (each in a subproc)
 for variant in $VARIANTS_LIST; do
-  echo
+    echo
 
-  if [[ $variant == "-" ]]; then  # regular package (not an extra)
-    pip_install_pkg="."
-    dockerfile="$TEMPDIR/Dockerfile"
-    DEPS_LOG_FNAME="dependencies.log"
-  else
-    pip_install_pkg=".[$variant]"
-    dockerfile="$TEMPDIR/Dockerfile_$variant"
-    DEPS_LOG_FNAME="dependencies-${variant}.log"
-  fi
+    if [[ $variant == "-" ]]; then # regular package (not an extra)
+        pip_install_pkg="."
+        dockerfile="$TEMPDIR/Dockerfile"
+        DEPS_LOG_FNAME="$PY_DEP_LOG_FNAME_PREFIX.log"
+    else
+        pip_install_pkg=".[$variant]"
+        dockerfile="$TEMPDIR/Dockerfile_$variant"
+        DEPS_LOG_FNAME="$PY_DEP_LOG_FNAME_PREFIX-${variant}.log"
+    fi
 
-  # make an ad-hoc dockerfile
-  cat << EOF >> $dockerfile
+    # make an ad-hoc dockerfile
+    cat <<EOF >>$dockerfile
 FROM python:$PACKAGE_MAX_PYTHON_VERSION
 COPY . .
 RUN pip install --no-cache-dir $pip_install_pkg
 CMD []
 EOF
 
-  # and build it
-  image="gen-$( basename $DEPS_LOG_FNAME ):local"
-  docker build -t $image --file $dockerfile $REPO_PATH
+    # and build it
+    image="gen-$(basename $DEPS_LOG_FNAME):local"
+    docker build -t $image --file $dockerfile $REPO_PATH
 
-  # generate deps!
-  $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
-    $image \
-    "$DEPS_LOG_FNAME" \
-    "from \`pip install $pip_install_pkg\`" \
-    &
+    # generate deps!
+    $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
+        $image \
+        "$DEPS_LOG_FNAME" \
+        "from \`pip install $pip_install_pkg\`" \
+        &
 
 done
 
@@ -59,7 +59,7 @@ echo
 
 # wait for all subprocs
 for _ in $VARIANTS_LIST; do
-  wait -n
+    wait -n
 done
 
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
