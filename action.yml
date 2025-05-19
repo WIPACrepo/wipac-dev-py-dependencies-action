@@ -175,4 +175,4 @@ runs:
       with:
         name: py-dependency-logs
         path: artifacts/
-        if-no-files-found: ignore
+        if-no-files-found: error
