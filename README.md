@@ -4,19 +4,23 @@ GitHub Action Package for Automating Python-Package Dependency Management
 
 ## Overview
 
-This GitHub Action creates 1+ `dependencies*.log` file(s) for documenting dependency versions (ex: `dependencies.log`, `dependencies-dev.log`, `dependencies-docker-default.log`, etc.). These files are similar to `requirements*.txt`-type files, with the distinct difference that *`dependencies*.log`-type files are a reflection of the built environment(s).* If dependency-version pinning is wanted, it should be done by the user in the `setup.cfg`/`pyproject.toml` file.
+This GitHub Action creates 1+ `py-dependencies*.log` file(s) for documenting dependency versions (ex: `py-dependencies.log`, `py-dependencies-dev.log`, `py-dependencies-docker-default.log`, etc.) for a repo's Python package. Additional `py-dependencies-EXTRA.log` files are generated for each package "extra".
+
+These files are uploaded as GitHub release assets, along with a "diff" file (`py-dependencies*.diff`) comparing the generated file to the previous release. When the GitHub action runs on other branches, the file is dumped to the console in color.
+
+These files are similar to `requirements*.txt`-type files, with the distinct difference that *`py-dependencies*.log`-type files are a reflection of the built environment(s).* If dependency-version pinning is wanted, it should be done by the user in the `setup.cfg`/`pyproject.toml` file.
 
 ### Details
 
-This action uses `pip freeze` + [`pipdeptree`](https://pypi.org/project/pipdeptree/) to generate the `dependencies*.log` file(s). All current `dependencies*.log` files are deleted/overwritten/updated. By default, these file(s) are placed at the client repository's root. Setting the input arg `use_directory: true` will place the generated file(s) in `dependencies-logs/`.
+This action uses `pip freeze` + [`pipdeptree`](https://pypi.org/project/pipdeptree/) to generate the file.
 
 #### Generating from Python Package
 
-By default, this action generates a `dependencies*.log` file using the environment built from the client's Python package. In addition, a dedicated `dependencies-EXTRA.log` file is generated for each package "extra".
+This is the default behavior, no special configuration is needed.
 
 #### Generating from Docker Images
 
-If the user supplies Docker image(s) tagged with `"py-dep-this"`, `dependencies*.log` file(s), named `dependencies-docker-{IMAGE_NAME}.log`, are generated from within each container.
+If the user supplies Docker image(s) tagged with `"py-dep-this"`, file(s) named `py-dependencies-docker-{IMAGE_NAME}.log`, are generated from within each container.
 
 ### Example File
 
@@ -50,7 +54,3 @@ If the user supplies Docker image(s) tagged with `"py-dep-this"`, `dependencies*
         │   └── urllib3 [required: >=1.21.1,<3, installed: 2.0.7]
         └── typing-extensions [required: Any, installed: 4.8.0]
         ```
-
-### Full CI-Workflow: Using Alongside Other GitHub Actions
-
-See https://github.com/WIPACrepo/wipac-dev-py-setup-action#full-ci-workflow-using-alongside-other-github-actions
