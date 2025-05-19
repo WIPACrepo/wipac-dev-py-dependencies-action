@@ -2,133 +2,181 @@ name: 'WIPAC Dev Py Dependencies'
 description: 'GitHub Action Package for Automating Python-Package Dependency Management'
 
 inputs:
-  git_committer_name:
-    description: 'The name used for "git config user.name"'
-    required: false
-    default: github-actions
-  git_committer_email:
-    description: 'The email used for "git config user.email"'
-    required: false
-    default: github-actions@github.com
-  docker_tag_to_dep:
-    description: 'The email used for "git config user.email"'
-    required: false
-    default: py-dep-this
-  use_directory:
-    description: 'Whether to put all generated dep-log files, relative to the project/repo directory; (true/false)'
-    required: false
-    default: "false"
   dockerfile_ignore_paths:
     description: 'A comma-delimited list of Dockerfile* filepaths to skip'
     required: false
     default: ""
 
-
-# outputs:
-#   random-number:
-#     description: "Random number"
-#     value: ${{ steps.random-number-generator.outputs.random-id }}
-
 runs:
   using: "composite"
   steps:
     - uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'  # NOTE: update, someday. Also tests.yml
 
-    - name: Is this the most recent commit? It won't be if the action was reran
+    - name: Check if old files need to be removed
       run: |
-        # step: Is this the most recent commit? It won't be if the action was reran
+        # step: Check if old files need to be removed
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        # check git status
-        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        git fetch &> /dev/null
-        if [[ $(git status -sb | grep behind) ]]; then
-          echo "IS_GIT_BEHIND=true" >> $GITHUB_ENV
-          echo "this commit is not the most recent on this branch -- rest of action will be skipped"
+        if find . -name "dependencies*.log" -type f | grep -q .; then
+            echo "::error::dependencies*.log must be manually deleted -- v3 doesn't use these files"
+            exit 1
         fi
       shell: bash
 
-    - name: Git config
-      if: env.IS_GIT_BEHIND != 'true'
+    - name: Set shared env
       run: |
-        # step: Git config
+        # step: Set shared env
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        # git config
-        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        git config user.name ${{ inputs.git_committer_name }}
-        git config user.email ${{ inputs.git_committer_email }}
+        
+        STORE_PYDL_FILES_HERE="/tmp/py-dep-logs"
+        mkdir -p $STORE_PYDL_FILES_HERE
+        echo "STORE_PYDL_FILES_HERE=$STORE_PYDL_FILES_HERE" >> "$GITHUB_ENV"
+        
+        PYDL_FNAME_PREFIX="py-dependencies"
+        echo "PYDL_FNAME_PREFIX=$PYDL_FNAME_PREFIX" >> "$GITHUB_ENV"
       shell: bash
 
-    - name: pip
-      if: env.IS_GIT_BEHIND != 'true'
+
+    - name: Figure Project's Max Py Version
       run: |
-        # step: pip
+        # step: Figure Project's Max Py Version
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        echo "##[group]installs"
+        sudo apt-get update
+        python -m venv action_venv
+        . action_venv/bin/activate
+        pip3 install wipac-dev-tools[semver]
+        echo "##[endgroup]"
+        
+        MAX_PY=$(python -c "
+        from wipac_dev_tools import semver_parser_tools
+
+        top_python = semver_parser_tools.get_latest_py3_release()
+        all_matches = semver_parser_tools.list_all_majmin_versions(
+          major=top_python[0],
+          semver_range=semver_parser_tools.get_py_semver_range_for_project(),
+          max_minor=top_python[1],
+        )
+
+        print(f'{max(all_matches)[0]}.{max(all_matches)[1]}')
+        ")
+        echo "detected project's max supported python: $MAX_PY"
+        
+        rm -rf action_venv/
+        echo "PACKAGE_MAX_PYTHON_VERSION=$MAX_PY" >> "$GITHUB_ENV"
+      shell: bash
+
+    - name: pip install reqs
+      run: |
+        # step: pip install reqs
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+        echo "##[group]pip installs"
         sudo apt-get update
         pip3 install -r ${{ github.action_path }}/requirements.txt
+        echo "##[endgroup]"
       shell: bash
 
     - name: Build dependencies.log (and commit)
-      if: env.IS_GIT_BEHIND != 'true'
       env:
         ACTION_REPOSITORY: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         GITHUB_ACTION_PATH: ${{ github.action_path }}
-        DOCKER_TAG_TO_DEP: ${{ inputs.docker_tag_to_dep }}
-        DEST_DIRECTORY_IF_WANTED: dependencies-logs/
+        DOCKER_TAG_TO_PYDL: "py-dep-this"
       run: |
         # step: Build dependencies.log (and commit)
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        # build dependencies.log (and commit)
-        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
         
-        # append permissive line to .gitignore since *.log is commonly present
-        line='!dependencies*.log'
-        if [[ ! $(grep -F "$line" .gitignore) ]]; then
-          echo "" >> .gitignore
-          echo "" >> .gitignore
-          echo "# wipac-dev-py-setup-action" >> .gitignore
-          echo "$line" >> .gitignore
-          git add .gitignore
-          git commit -m "<bot> update .gitignore" || true  # okay if no change
-          tail .gitignore
-        fi
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         
-        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
-        
-        # remove any old ones, then regenerate only what's needed
-        (find . -name "dependencies*.log" -type f -print0 | xargs -0 rm) || true
-        
-        # run script
         export REPO_PATH=$(pwd)
         export DOCKERFILE_IGNORE_PATHS="${{ inputs.dockerfile_ignore_paths }}"
+        
+        # run script
+        echo "##[group]generating dep logs"
         /bin/bash $GITHUB_ACTION_PATH/action.sh
+        echo "##[endgroup]"
         
-        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
+        ls $STORE_PYDL_FILES_HERE
         
-        if [[ $( echo "${{ inputs.use_directory }}" | awk '{print tolower($0)}' ) == "true" ]]; then
-            mkdir -p $DEST_DIRECTORY_IF_WANTED
-            find . -name "dependencies*.log" -type f -exec mv -i {} $DEST_DIRECTORY_IF_WANTED  \;
-        fi
-        
-        # Commit
-        git add .
-        git commit -m "<bot> update dependencies*.log files(s)" || true  # okay if no change
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
       shell: bash
 
-    - name: Push changes
-      if: env.IS_GIT_BEHIND != 'true'
+    - name: Fetch default branch
       run: |
-        # step: Push changes
+        # step: Fetch default branch
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        # push changes (if needed)
-        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        status=`git status 2>&1 | tee`
-        ahead=`echo -n "${status}" 2> /dev/null | grep "Your branch is ahead of" &> /dev/null; echo "$?"`
-        if [ "$ahead" -eq "1" ]; then
-          echo "no changes needed"
-          exit 0
-        fi
-        git push
-        echo "changes pushed"
+        
+        echo "##[group]fetching default branch"
+        
+        default_branch="$(git remote show origin | awk '/HEAD branch/ {print $NF}')"
+        echo "Default branch is $default_branch"
+        git fetch origin "$default_branch":"refs/remotes/origin/$default_branch"
+        echo "DEFAULT_BRANCH=$default_branch" >> "$GITHUB_ENV"
+        
+        echo "##[endgroup]"
       shell: bash
+
+    - name: Dump diffs to console
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        # step: Dump diffs to console
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        mkdir -p artifacts
+
+        shopt -s globstar nullglob
+        for file in $STORE_PYDL_FILES_HERE/*.log; do
+            fname=$(basename "$file")
+            old_file=$(mktemp)
+
+            echo " "
+            echo " "
+            echo " "
+            echo "====> $file <$(printf '=%.0s' $(seq 1 $((72 - 7 - ${#file}))))"
+            echo " "
+
+            cp "$file" "artifacts/$fname"
+            diff_file="artifacts/${fname%.log}.diff"
+
+            # find the old file and diff it
+            if ! python3 \
+                "${{ github.action_path }}/utils/get_old_pydl_file.py" \
+                "$fname" "$DEFAULT_BRANCH" "${{ github.repository }}" \
+                > "$old_file"
+            then
+                # no old file?
+                echo "<new file>" > "$diff_file"
+                echo "::notice::file is new (no old version)"
+                cat "$file"
+                continue
+            else
+                # show diff
+                echo "::notice::diff: $file"
+                sed -i ':a; /./!{$d;N;ba};' "$old_file"  # remove trailing blank lines
+                sed -i ':a; /./!{$d;N;ba};' "$file"      # remove trailing blank lines
+                # NOTE: 'diff' exits w/ 0 (no change), 1 (changes), >1 (error)
+                fmt_opts=(
+                  --old-line-format='- %L'
+                  --new-line-format='+ %L'
+                  --unchanged-line-format='  %L'
+                )
+                if ! diff "${fmt_opts[@]}" "$old_file" "$file" > "$diff_file"; then
+                    # also print with color, but don't save ANSI to file
+                    diff --color=always "${fmt_opts[@]}" "$old_file" "$file" || true
+                else
+                    echo "<no changes>" > "$diff_file"
+                    echo "::notice::$fname is unchanged"
+                fi
+            fi
+        done
+        echo " "
+
+      shell: bash
+
+    - name: Upload as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: py-dependencies-logs
+        path: artifacts/
+        if-no-files-found: error
