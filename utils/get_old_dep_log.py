@@ -115,7 +115,7 @@ def main() -> str:
         )
         return contents
 
-    # back-up plan: look for files in git
+    # back-up plan: look for files in git -- start with latest commit (n=0)
     for n in range(25):  # that's probably deep enough
         contents = get_file_from_git(args.branch, args.filename, n_commits_old=n)
         if contents:
