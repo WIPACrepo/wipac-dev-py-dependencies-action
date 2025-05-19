@@ -25,7 +25,7 @@ trap 'rm "$pip_dep_tree"' EXIT
 pip3 freeze >$pip_freeze
 # pip_dep_tree
 pip3 install --target=./very-local pipdeptree
-export PYTHONPATH="${PYTHONPATH}:$(realpath ./very-local)"
+export PYTHONPATH="${PYTHONPATH-}:$(realpath ./very-local)"
 ./very-local/bin/pipdeptree >$pip_dep_tree
 
 # modify main package listing -> otherwise causes infinite loop when a new release is made
