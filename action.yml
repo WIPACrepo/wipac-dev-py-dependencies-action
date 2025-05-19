@@ -84,8 +84,8 @@ runs:
       run: |
         # step: Build dependencies.log (and commit)
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        # build dependencies.log (and commit)
-        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
+        
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         
         export REPO_PATH=$(pwd)
         export DOCKERFILE_IGNORE_PATHS="${{ inputs.dockerfile_ignore_paths }}"
@@ -95,8 +95,17 @@ runs:
         /bin/bash $GITHUB_ACTION_PATH/action.sh
         echo "##[endgroup]"
         
-        set +x; echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"; set -x
+        ls $STORE_PYDL_FILES_HERE
+        
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
+      shell: bash
+
+    - name: Look at PYDL directory
+      run: |
+        # step: Look at PYDL directory
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+        ls $STORE_PYDL_FILES_HERE
       shell: bash
 
     - name: Fetch default branch
