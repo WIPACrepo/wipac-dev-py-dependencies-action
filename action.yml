@@ -148,10 +148,14 @@ runs:
                 # show diff
                 echo "::notice::Diff: $file"
                 # NOTE: 'diff' exits w/ 0 (no change), 1 (changes), >1 (error)
-                fmt_opts="--old-line-format='- %L' --new-line-format='+ %L' --unchanged-line-format='  %L'"
-                if ! diff $fmt_opts "$old_file" "$file" > "$diff_file"; then
+                fmt_opts=(
+                  --old-line-format='- %L'
+                  --new-line-format='+ %L'
+                  --unchanged-line-format='  %L'
+                )
+                if ! diff "${fmt_opts[@]}" "$old_file" "$file" > "$diff_file"; then
                     # also print with color, but don't save ANSI to file
-                    diff --color=always $fmt_opts "$old_file" "$file" || true
+                    diff --color=always "${fmt_opts[@]}" "$old_file" "$file" || true
                 else
                     echo "<no changes>" > "$diff_file"
                     echo "::notice::$fname is unchanged"
