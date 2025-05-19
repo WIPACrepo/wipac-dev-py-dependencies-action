@@ -152,7 +152,9 @@ runs:
                 continue
             else
                 # show diff
-                echo "::notice::Diff: $file"
+                echo "::notice::diff: $file"
+                sed -i ':a; /./!{$d;N;ba};' "$old_file"  # remove trailing blank lines
+                sed -i ':a; /./!{$d;N;ba};' "$file"      # remove trailing blank lines
                 # NOTE: 'diff' exits w/ 0 (no change), 1 (changes), >1 (error)
                 fmt_opts=(
                   --old-line-format='- %L'
