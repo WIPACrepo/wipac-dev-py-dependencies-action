@@ -11,12 +11,6 @@ inputs:
     required: false
     default: ""
 
-
-# outputs:
-#   random-number:
-#     description: "Random number"
-#     value: ${{ steps.random-number-generator.outputs.random-id }}
-
 runs:
   using: "composite"
   steps:
@@ -31,6 +25,17 @@ runs:
             exit 1
         fi
       shell: bash
+
+    - name: Set shared env
+      run: |
+        # step: Set shared env
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+        
+        STORE_LOGS_HERE="/tmp/py-dep-logs"
+        mkdir -p $STORE_LOGS_HERE
+        echo "STORE_LOGS_HERE=$STORE_LOGS_HERE" >> "$GITHUB_ENV"
+      shell: bash
+
 
     - name: Figure Project's Max Py Version
       run: |
@@ -120,7 +125,7 @@ runs:
         mkdir -p artifacts
 
         shopt -s globstar nullglob
-        for file in **/dependencies*.log; do
+        for file in $STORE_LOGS_HERE/dependencies*.log; do
             fname=$(basename "$file")
             old_file=$(mktemp)
 
@@ -153,8 +158,6 @@ runs:
                   --new-line-format='+ %L'
                   --unchanged-line-format='  %L'
                 )
-                sed -i ':a; /./!{$d;N;ba};' "$file"      # remove trailing blank lines
-                sed -i ':a; /./!{$d;N;ba};' "$old_file"  # remove trailing blank lines
                 if ! diff "${fmt_opts[@]}" "$old_file" "$file" > "$diff_file"; then
                     # also print with color, but don't save ANSI to file
                     diff --color=always "${fmt_opts[@]}" "$old_file" "$file" || true
