@@ -153,6 +153,8 @@ runs:
                   --new-line-format='+ %L'
                   --unchanged-line-format='  %L'
                 )
+                sed -i ':a; /./!{$d;N;ba};' "$file"      # remove trailing blank lines
+                sed -i ':a; /./!{$d;N;ba};' "$old_file"  # remove trailing blank lines
                 if ! diff "${fmt_opts[@]}" "$old_file" "$file" > "$diff_file"; then
                     # also print with color, but don't save ANSI to file
                     diff --color=always "${fmt_opts[@]}" "$old_file" "$file" || true
