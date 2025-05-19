@@ -45,9 +45,13 @@ def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str
         check=True,
     )
 
-    # Search for a match by basename
+    # Search for a matching file
     for line in result.stdout.splitlines():
-        if line.endswith(f"/{filename}"):
+        if any(
+            line.endswith(m)
+            # match by basename, however old versions named the file w/o the 'py-' prefix
+            for m in [f"/{filename}", f"/{filename.removeprefix('py-')}"]
+        ):
             out = subprocess.run(
                 ["git", "show", f"{commit_ref}:{line}"],
                 stdout=subprocess.PIPE,

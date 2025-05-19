@@ -63,6 +63,7 @@ fi
 ls $TEMPDIR
 
 # finally, move/overwrite the dep-log file that was generated above
+sed -i ':a; /./!{$d;N;ba};' "$TEMPDIR/deps.log" # remove trailing blank lines
 mv "$TEMPDIR/deps.log" "$STORE_LOGS_HERE/$DEPS_LOG_FNAME"
 
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
