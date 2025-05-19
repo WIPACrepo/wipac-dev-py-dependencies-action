@@ -101,13 +101,6 @@ runs:
 
       shell: bash
 
-    - name: Look at PYDL directory
-      run: |
-        # step: Look at PYDL directory
-        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        ls $STORE_PYDL_FILES_HERE
-      shell: bash
-
     - name: Fetch default branch
       run: |
         # step: Fetch default branch
@@ -133,7 +126,7 @@ runs:
         mkdir -p artifacts
 
         shopt -s globstar nullglob
-        for file in $STORE_PYDL_FILES_HERE/dependencies*.log; do
+        for file in $STORE_PYDL_FILES_HERE/*.log; do
             fname=$(basename "$file")
             old_file=$(mktemp)
 
