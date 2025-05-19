@@ -6,7 +6,7 @@ set -ex
 
 ########################################################################
 #
-# Generate dependencies-*.log for each user-supplied image
+# Generate PYDL for each user-supplied image
 #
 ########################################################################
 
@@ -14,8 +14,8 @@ ls $REPO_PATH
 
 ########################################################################
 
-if [ -z "$IMAGES_TO_DEP" ]; then
-    echo "::error::'IMAGES_TO_DEP' was not given or is empty ('$IMAGES_TO_DEP')"
+if [ -z "$IMAGES_TO_PYDL" ]; then
+    echo "::error::'IMAGES_TO_PYDL' was not given or is empty ('$IMAGES_TO_PYDL')"
     exit 2
 fi
 
@@ -34,12 +34,12 @@ else
     USE_PODMAN=""
 fi
 
-# dep each image
-for image in $IMAGES_TO_DEP; do
+# PYDL each image
+for image in $IMAGES_TO_PYDL; do
     echo $image
     $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
         $image \
-        "$PY_DEP_LOG_FNAME_PREFIX-docker-$(echo "$image" | cut -d ":" -f 1 | tr '/' '-').log" \
+        "$PYDL_FNAME_PREFIX-docker-$(echo "$image" | cut -d ":" -f 1 | tr '/' '-').log" \
         "within a container using the user-supplied image '$(echo $image | cut -d ":" -f 1)'" \
         $USE_PODMAN
 done

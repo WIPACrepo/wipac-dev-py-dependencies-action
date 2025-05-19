@@ -16,7 +16,7 @@ By default, this action generates a `dependencies*.log` file using the environme
 
 #### Generating from Docker Images
 
-If the user supplies Docker image(s) tagged with `"py-dep-this"` (configurable by the input arg, `docker_tag_to_dep`). `dependencies*.log` file(s), named `dependencies-docker-{IMAGE_NAME}.log`, are generated from within each container.
+If the user supplies Docker image(s) tagged with `"py-dep-this"`, `dependencies*.log` file(s), named `dependencies-docker-{IMAGE_NAME}.log`, are generated from within each container.
 
 ### Example File
 

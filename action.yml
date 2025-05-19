@@ -2,10 +2,6 @@ name: 'WIPAC Dev Py Dependencies'
 description: 'GitHub Action Package for Automating Python-Package Dependency Management'
 
 inputs:
-  docker_tag_to_dep:
-    description: 'The tag attached to each docker image demarcating it for dep-logging!'
-    required: false
-    default: py-dep-this
   dockerfile_ignore_paths:
     description: 'A comma-delimited list of Dockerfile* filepaths to skip'
     required: false
@@ -31,12 +27,12 @@ runs:
         # step: Set shared env
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         
-        STORE_LOGS_HERE="/tmp/py-dep-logs"
-        mkdir -p $STORE_LOGS_HERE
-        echo "STORE_LOGS_HERE=$STORE_LOGS_HERE" >> "$GITHUB_ENV"
+        STORE_PYDL_FILES_HERE="/tmp/py-dep-logs"
+        mkdir -p $STORE_PYDL_FILES_HERE
+        echo "STORE_PYDL_FILES_HERE=$STORE_PYDL_FILES_HERE" >> "$GITHUB_ENV"
         
-        PY_DEP_LOG_FNAME_PREFIX="py-dependencies"
-        echo "PY_DEP_LOG_FNAME_PREFIX=$PY_DEP_LOG_FNAME_PREFIX" >> "$GITHUB_ENV"
+        PYDL_FNAME_PREFIX="py-dependencies"
+        echo "PYDL_FNAME_PREFIX=$PYDL_FNAME_PREFIX" >> "$GITHUB_ENV"
       shell: bash
 
 
@@ -84,7 +80,7 @@ runs:
       env:
         ACTION_REPOSITORY: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         GITHUB_ACTION_PATH: ${{ github.action_path }}
-        DOCKER_TAG_TO_DEP: ${{ inputs.docker_tag_to_dep }}
+        DOCKER_TAG_TO_PYDL: "py-dep-this"
       run: |
         # step: Build dependencies.log (and commit)
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -128,7 +124,7 @@ runs:
         mkdir -p artifacts
 
         shopt -s globstar nullglob
-        for file in $STORE_LOGS_HERE/dependencies*.log; do
+        for file in $STORE_PYDL_FILES_HERE/dependencies*.log; do
             fname=$(basename "$file")
             old_file=$(mktemp)
 
@@ -143,7 +139,7 @@ runs:
 
             # find the old file and diff it
             if ! python3 \
-                "${{ github.action_path }}/utils/get_old_dep_log.py" \
+                "${{ github.action_path }}/utils/get_old_pydl_file.py" \
                 "$fname" "$DEFAULT_BRANCH" "${{ github.repository }}" \
                 > "$old_file"
             then

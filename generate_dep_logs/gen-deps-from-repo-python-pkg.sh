@@ -6,8 +6,7 @@ set -ex
 
 ########################################################################
 #
-# Build dependencies.log and
-# generate dependencies-*.log for each extras_require
+# Build a PYDL for python package and an additional for each install variant
 #
 ########################################################################
 
@@ -27,11 +26,11 @@ for variant in $VARIANTS_LIST; do
     if [[ $variant == "-" ]]; then # regular package (not an extra)
         pip_install_pkg="."
         dockerfile="$TEMPDIR/Dockerfile"
-        DEPS_LOG_FNAME="$PY_DEP_LOG_FNAME_PREFIX.log"
+        PYDL_FNAME="$PYDL_FNAME_PREFIX.log"
     else
         pip_install_pkg=".[$variant]"
         dockerfile="$TEMPDIR/Dockerfile_$variant"
-        DEPS_LOG_FNAME="$PY_DEP_LOG_FNAME_PREFIX-${variant}.log"
+        PYDL_FNAME="$PYDL_FNAME_PREFIX-${variant}.log"
     fi
 
     # make an ad-hoc dockerfile
@@ -43,13 +42,13 @@ CMD []
 EOF
 
     # and build it
-    image="gen-$(basename $DEPS_LOG_FNAME):local"
+    image="gen-$(basename $PYDL_FNAME):local"
     docker build -t $image --file $dockerfile $REPO_PATH
 
-    # generate deps!
+    # generate PYDL!
     $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
         $image \
-        "$DEPS_LOG_FNAME" \
+        "$PYDL_FNAME" \
         "from \`pip install $pip_install_pkg\`" \
         &
 

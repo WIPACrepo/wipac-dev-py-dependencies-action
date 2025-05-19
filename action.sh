@@ -19,10 +19,10 @@ export PACKAGE_NAME=$(python3 $GITHUB_ACTION_PATH/utils/get_package_name.py .)
 # generate
 
 # Detect if user supplied image(s)
-IMAGES_TO_DEP=$(docker images | awk -v pat="$DOCKER_TAG_TO_DEP" '$2==pat' | awk -F ' ' '{print $1":"$2}')
-if [ -n "$IMAGES_TO_DEP" ]; then
+IMAGES_TO_PYDL=$(docker images | awk -v pat="$DOCKER_TAG_TO_PYDL" '$2==pat' | awk -F ' ' '{print $1":"$2}')
+if [ -n "$IMAGES_TO_PYDL" ]; then
     # from Dockerfile(s)...
-    export IMAGES_TO_DEP
+    export IMAGES_TO_PYDL
     "$GITHUB_ACTION_PATH"/generate_dep_logs/gen-deps-from-user-docker-images.sh
 else
     # from python package...
