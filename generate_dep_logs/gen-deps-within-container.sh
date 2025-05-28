@@ -2,11 +2,11 @@
 set -euo pipefail
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "$(basename "$0")..." && echo
-set -ex
+set -e
 
 ########################################################################
 #
-# Generate dependencies-log file for the given docker image
+# Generate PYDL file for the given docker image
 #
 ########################################################################
 
@@ -15,12 +15,12 @@ ls $REPO_PATH
 ########################################################################
 
 # GET ARGS
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
-    echo "Usage: gen-deps-within-container.sh DOCKER_IMAGE DEPS_LOG_FILE SUBTITLE [--podman]"
+if [ -z "${1-}" ] || [ -z "${2-}" ] || [ -z "${3-}" ]; then
+    echo "Usage: gen-deps-within-container.sh DOCKER_IMAGE PYDL_FNAME SUBTITLE [--podman]"
     exit 1
 else
     DOCKER_IMAGE="$1"
-    DEPS_LOG_FILE="$2"
+    PYDL_FNAME="$2"
     SUBTITLE="$3"
 fi
 
@@ -62,7 +62,8 @@ fi
 
 ls $TEMPDIR
 
-# finally, move/overwrite the dep-log file that was generated above
-mv $TEMPDIR/deps.log $DEPS_LOG_FILE
+# finally, move/overwrite the file that was generated above
+sed -i ':a; /./!{$d;N;ba};' "$TEMPDIR/deps.log" # remove trailing blank lines
+mv "$TEMPDIR/deps.log" "$STORE_PYDL_FILES_HERE/$PYDL_FNAME"
 
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
