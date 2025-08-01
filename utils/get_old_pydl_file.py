@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Get the old dependency log file."""
 import argparse
-import logging
 import os
 import subprocess
 import sys
@@ -9,11 +8,13 @@ from pathlib import Path
 
 import requests
 
-LOGGER = logging.getLogger()  # use root
+
+def _log(string: str) -> None:
+    print(string, file=sys.stderr)
 
 
 def _subproc(args: str, stdout=subprocess.DEVNULL) -> subprocess.CompletedProcess:
-    LOGGER.info(f"subprocess: {args=}")
+    _log(f"subprocess: {args=}")
     return subprocess.run(
         args.split(),
         check=True,
@@ -34,7 +35,7 @@ def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str
     if n_commits_old == 0:
         commit_ref = f"origin/{branch}"
     else:
-        LOGGER.info(f"-> fetching origin/{branch} ({n_commits_old=})")
+        _log(f"-> fetching origin/{branch} ({n_commits_old=})")
         # fetch, then find commit ref
         _subproc(f"git fetch origin {branch} --deepen {n_commits_old + 1}")
         commit_ref = _subproc_stdout(
@@ -53,7 +54,7 @@ def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str
         ):
             return _subproc_stdout(f"git show {commit_ref}:{line}")
 
-    LOGGER.info("-> did not find file")
+    _log("-> did not find file")
     return None
 
 
@@ -68,7 +69,7 @@ def get_file_from_release(repo: str, filename: str, token: str) -> str | None:
         return None
 
     for asset in r.json().get("assets", []):
-        LOGGER.info(f"{asset=}")
+        _log(f"{asset=}")
         if asset.get("name") == filename:
             dl_url = asset.get("browser_download_url")
             dl_r = requests.get(dl_url, headers=headers)
@@ -105,16 +106,13 @@ def main() -> None:
 
     token = os.getenv("GITHUB_TOKEN")
     if not token:
-        print("::error::GITHUB_TOKEN is not set", file=sys.stderr)
+        _log("::error::GITHUB_TOKEN is not set")
         sys.exit(1)
 
     # look for file
     from_release = get_file_from_release(args.repo, args.filename, token)
     if from_release:
-        print(
-            f"::notice::found file '{args.filename}' in release asset",
-            file=sys.stderr,
-        )
+        _log(f"::notice::found file '{args.filename}' in release asset")
         args.dest.write_text(from_release)
         return
 
@@ -122,18 +120,14 @@ def main() -> None:
     for n in range(25):  # that's probably deep enough
         from_git = get_file_from_git(args.branch, args.filename, n_commits_old=n)
         if from_git:
-            print(
-                f"::notice::found file '{args.filename}' in '{args.branch}'",
-                file=sys.stderr,
-            )
+            _log(f"::notice::found file '{args.filename}' in '{args.branch}'")
             args.dest.write_text(from_git)
             return
 
     # not to be found
-    print(f"::notice::could not find file '{args.filename}'")
+    _log(f"::notice::could not find file '{args.filename}'")
     sys.exit(2)
 
 
 if __name__ == "__main__":
-    LOGGER.setLevel(logging.DEBUG)
     main()
