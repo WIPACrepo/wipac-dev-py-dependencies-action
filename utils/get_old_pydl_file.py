@@ -8,6 +8,8 @@ from pathlib import Path
 
 import requests
 
+COMMITS_BACK = 25  # that's probably deep enough
+
 
 def _log(string: str) -> None:
     print(string, file=sys.stderr)
@@ -113,17 +115,20 @@ def main() -> None:
     # look for file
     from_release = get_file_from_release(args.repo, args.filename, token)
     if from_release:
-        _log(f"::notice::found file '{args.filename}' in release asset")
+        _log(f"::notice::found file '{args.filename}' in latest github release assets")
         args.dest.write_text(from_release)
         return
+    else:
+        _log(f"file not found in latest github release assets '{args.filename}'")
 
     # back-up plan: look for files in git -- start with latest commit (n=0)
-    for n in range(25):  # that's probably deep enough
+    for n in range(COMMITS_BACK):
         from_git = get_file_from_git(args.branch, args.filename, n_commits_old=n)
         if from_git:
             _log(f"::notice::found file '{args.filename}' in '{args.branch}'")
             args.dest.write_text(from_git)
             return
+    _log(f"file not found in previous {COMMITS_BACK} commits '{args.filename}'")
 
     # not to be found
     _log(f"::notice::could not find file '{args.filename}'")
