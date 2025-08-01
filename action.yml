@@ -139,19 +139,21 @@ runs:
             cp "$file" "artifacts/$fname"
             diff_file="artifacts/${fname%.log}.diff"
 
-            # find the old file and diff it
-            if ! python3 \
-                "${{ github.action_path }}/utils/get_old_pydl_file.py" \
-                "$fname" "$DEFAULT_BRANCH" "${{ github.repository }}" \
-                > "$old_file"
-            then
-                # no old file?
+            python3 "${{ github.action_path }}/utils/get_old_pydl_file.py" \
+                "$fname" \
+                --branch "$DEFAULT_BRANCH" \
+                --repo "${{ github.repository }}" \
+                --dest "$old_file"
+
+            # does $old_file have contents? if so, diff it w/ the generated log file
+            if [ ! -s "$old_file" ]; then
+                # it's empty -> log must be new
                 echo "<new file>" > "$diff_file"
                 echo "::notice::file is new (no old version)"
                 cat "$file"
                 continue
             else
-                # show diff
+                # not empty -> diff them
                 echo "::notice::diff: $file"
                 sed -i ':a; /./!{$d;N;ba};' "$old_file"  # remove trailing blank lines
                 sed -i ':a; /./!{$d;N;ba};' "$file"      # remove trailing blank lines
