@@ -41,6 +41,7 @@ def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str
         commit_ref = _subproc_stdout(
             f"git rev-list --max-count=1 origin/{branch} --skip={n_commits_old}"
         )
+    _log(f"using {commit_ref=}")
 
     # List all files in that commit ref
     ls_tree = _subproc_stdout(f"git ls-tree -r --name-only {commit_ref}")
