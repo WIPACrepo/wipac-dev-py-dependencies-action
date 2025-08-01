@@ -30,7 +30,11 @@ def _subproc_stdout(args: str) -> str:
     return res.stdout.decode("utf-8").strip()
 
 
-def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str | None:
+def get_file_from_git(
+    branch: str,
+    filename_options: list[str],
+    n_commits_old: int = 0,
+) -> str | None:
     """Find the file in the branch, optionally at an old commit."""
 
     # Resolve the desired commit hash
@@ -53,11 +57,8 @@ def get_file_from_git(branch: str, filename: str, n_commits_old: int = 0) -> str
 
     # Search for a matching file
     for line in ls_tree.splitlines():
-        if any(
-            line.endswith(m)
-            # match by basename, however old versions named the file w/o the 'py-' prefix
-            for m in [f"/{filename}", f"/{filename.removeprefix('py-')}"]
-        ):
+        _log(f"looking at git file: {line}")
+        if any(line.endswith(m) for m in filename_options):
             return _subproc_stdout(f"git show {commit_ref}:{line}")
 
     _log("-> did not find file")
@@ -125,13 +126,18 @@ def main() -> None:
         _log(f"file not found in latest github release assets '{args.filename}'")
 
     # back-up plan: look for files in git -- start with latest commit (n=0)
+    filename_options = [
+        # match by basename, however old versions named the file w/o the 'py-' prefix
+        f"/{args.filename}",
+        f"/{args.filename.removeprefix('py-')}",
+    ]
     for n in range(COMMITS_BACK):
-        from_git = get_file_from_git(args.branch, args.filename, n_commits_old=n)
+        from_git = get_file_from_git(args.branch, filename_options, n_commits_old=n)
         if from_git:
-            _log(f"::notice::found file '{args.filename}' in '{args.branch}'")
+            _log(f"::notice::found file {filename_options=} in '{args.branch}'")
             args.dest.write_text(from_git)
             return
-    _log(f"file not found in previous {COMMITS_BACK} commits '{args.filename}'")
+    _log(f"file not found in previous {COMMITS_BACK} commits {filename_options=}")
 
     # not to be found
     _log(f"::notice::could not find file '{args.filename}'")
