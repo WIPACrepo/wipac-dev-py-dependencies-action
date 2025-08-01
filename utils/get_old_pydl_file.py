@@ -58,7 +58,7 @@ def get_file_from_git(
     # Search for a matching file
     for line in ls_tree.splitlines():
         _log(f"looking at git file: {line}")
-        if any(line.endswith(m) for m in filename_options):
+        if any(Path(line).name == o for o in filename_options):
             return _subproc_stdout(f"git show {commit_ref}:{line}")
 
     _log("-> did not find file")
@@ -128,8 +128,8 @@ def main() -> None:
     # back-up plan: look for files in git -- start with latest commit (n=0)
     filename_options = [
         # match by basename, however old versions named the file w/o the 'py-' prefix
-        f"/{args.filename}",
-        f"/{args.filename.removeprefix('py-')}",
+        f"{args.filename}",
+        f"{args.filename.removeprefix('py-')}",
     ]
     for n in range(COMMITS_BACK):
         from_git = get_file_from_git(args.branch, filename_options, n_commits_old=n)
