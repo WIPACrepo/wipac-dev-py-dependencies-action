@@ -30,12 +30,12 @@ def _subproc_stdout(args: str) -> str:
     return res.stdout.decode("utf-8").strip()
 
 
-def get_file_from_git(
+def get_file_contents_from_git(
     branch: str,
     filename_options: list[str],
     n_commits_old: int = 0,
-) -> str | None:
-    """Find the file in the branch, optionally at an old commit."""
+) -> tuple[Path, str]:
+    """Find the file in the branch, optionally at an old commit; return contents"""
 
     # Resolve the desired commit hash
     if n_commits_old == 0:
@@ -49,7 +49,7 @@ def get_file_from_git(
         )
         if not commit_ref:
             _log(f"fetched commit ref got '{commit_ref}', skipping...")
-            return None
+            raise FileNotFoundError()
     _log(f"using {commit_ref=}")
 
     # List all files in that commit ref
@@ -59,13 +59,43 @@ def get_file_from_git(
     for line in ls_tree.splitlines():
         _log(f"looking at git file: {line}")
         if any(Path(line).name == o for o in filename_options):
-            return _subproc_stdout(f"git show {commit_ref}:{line}")
+            return Path(line), _subproc_stdout(f"git show {commit_ref}:{line}")
 
     _log("-> did not find file")
-    return None
+    raise FileNotFoundError()
 
 
-def get_file_from_release(repo: str, filename: str, token: str) -> str | None:
+def write_file_from_git_history(
+    branch: str,
+    filename_options: list[str],
+    write_to: Path,
+) -> bool:
+    """Find the file in the branch, going back one commit at a time.
+
+    Then write its contents to `write_to`.
+    """
+    for n in range(COMMITS_BACK):
+        try:
+            fpath, contents = get_file_contents_from_git(
+                branch, filename_options, n_commits_old=n
+            )
+        except FileNotFoundError:
+            continue
+        else:
+            _log(f"::notice::found file {fpath=} in '{branch}'")
+            write_to.write_text(contents)
+            return True
+
+    _log(f"file not found in previous {COMMITS_BACK} commits {filename_options=}")
+    return False
+
+
+def write_file_from_gh_release(
+    repo: str, filename: str, token: str, write_to: Path
+) -> bool:
+    """Find the file in the github release, then write it to `write_to`."""
+
+    # get the gh release
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github.v3+json",
@@ -73,16 +103,27 @@ def get_file_from_release(repo: str, filename: str, token: str) -> str | None:
     url = f"https://api.github.com/repos/{repo}/releases/latest"
     r = requests.get(url, headers=headers)
     if not r.ok:
-        return None
+        return False
 
+    # find the file
+    contents = None
     for asset in r.json().get("assets", []):
         _log(f"{asset=}")
         if asset.get("name") == filename:
             dl_url = asset.get("browser_download_url")
             dl_r = requests.get(dl_url, headers=headers)
             if dl_r.ok:
-                return dl_r.text
-    return None
+                contents = dl_r.text
+                break
+
+    # write it
+    if contents is not None:
+        _log(f"::notice::found file '{filename}' in latest github release assets")
+        write_to.write_text(contents)
+        return True
+    else:
+        _log(f"file not found in latest github release assets '{filename}'")
+        return False
 
 
 def main() -> None:
@@ -116,28 +157,27 @@ def main() -> None:
         _log("::error::GITHUB_TOKEN is not set")
         sys.exit(1)
 
-    # look for file
-    from_release = get_file_from_release(args.repo, args.filename, token)
-    if from_release:
-        _log(f"::notice::found file '{args.filename}' in latest github release assets")
-        args.dest.write_text(from_release)
+    # look for file in github releases
+    if write_file_from_gh_release(args.repo, args.filename, token, args.dest):
         return
-    else:
-        _log(f"file not found in latest github release assets '{args.filename}'")
 
-    # back-up plan: look for files in git -- start with latest commit (n=0)
+    # back-up plan:
+    # -- look for files in git. starting with latest commit
     filename_options = [
         # match by basename, however old versions named the file w/o the 'py-' prefix
         f"{args.filename}",
         f"{args.filename.removeprefix('py-')}",
     ]
-    for n in range(COMMITS_BACK):
-        from_git = get_file_from_git(args.branch, filename_options, n_commits_old=n)
-        if from_git:
-            _log(f"::notice::found file {filename_options=} in '{args.branch}'")
-            args.dest.write_text(from_git)
+    if write_file_from_git_history(args.branch, filename_options, args.dest):
+        return
+
+    # back-up back-up plan:
+    # -- if this is a docker container, then it may match an older py-dep naming format
+    if args.filename.startwith("py-dependencies-docker-"):
+        if write_file_from_git_history(
+            args.branch, ["dependencies-from-Dockerfile.log"], args.dest
+        ):
             return
-    _log(f"file not found in previous {COMMITS_BACK} commits {filename_options=}")
 
     # not to be found
     _log(f"::notice::could not find file '{args.filename}'")
