@@ -173,7 +173,7 @@ def main() -> None:
 
     # back-up back-up plan:
     # -- if this is a docker container, then it may match an older py-dep naming format
-    if args.filename.startwith("py-dependencies-docker-"):
+    if args.filename.startswith("py-dependencies-docker-"):
         if write_file_from_git_history(
             args.branch, ["dependencies-from-Dockerfile.log"], args.dest
         ):
