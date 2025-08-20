@@ -53,15 +53,14 @@ def get_file_contents_from_git(
     _log(f"using {commit_ref=}")
 
     # List all files in that commit ref
-    ls_tree = _subproc_stdout(f"git ls-tree -r --name-only {commit_ref}")
+    ls_tree = _subproc_stdout(f"git ls-tree -r --name-only {commit_ref}").splitlines()
 
     # Search for a matching file
-    for line in ls_tree.splitlines():
-        _log(f"looking at git file: {line}")
+    for line in ls_tree:
         if any(Path(line).name == o for o in filename_options):
             return Path(line), _subproc_stdout(f"git show {commit_ref}:{line}")
 
-    _log("-> did not find file")
+    _log(f"-> did not find file {ls_tree=}")
     raise FileNotFoundError()
 
 
