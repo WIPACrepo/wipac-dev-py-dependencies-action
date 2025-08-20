@@ -180,8 +180,9 @@ def main() -> None:
             return
 
     # not to be found
-    _log(f"::notice::could not find file '{args.filename}'")
-    sys.exit(2)
+    _log(
+        f"::warning::could not find an existing '{args.filename}' -- assuming it is new"
+    )
 
 
 if __name__ == "__main__":
