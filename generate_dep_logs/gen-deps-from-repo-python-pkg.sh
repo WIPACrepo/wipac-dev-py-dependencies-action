@@ -10,12 +10,12 @@ set -e
 #
 ########################################################################
 
-ls $REPO_PATH
+ls "$REPO_PATH"
 
 # get all extras
-VARIANTS_LIST=$(python3 $GITHUB_ACTION_PATH/utils/list_extras.py $REPO_PATH)
-VARIANTS_LIST="- $(echo $VARIANTS_LIST)" # "-" signifies regular package
-echo $VARIANTS_LIST
+VARIANTS_LIST=$(python3 "$GITHUB_ACTION_PATH/utils/list_extras.py" "$REPO_PATH")
+VARIANTS_LIST="- $(echo "$VARIANTS_LIST")" # "-" signifies regular package
+echo "$VARIANTS_LIST"
 
 TEMPDIR=$(mktemp -d) && trap 'rm -rf "$TEMPDIR"' EXIT
 
@@ -33,21 +33,22 @@ for variant in $VARIANTS_LIST; do
         PYDL_FNAME="$PYDL_FNAME_PREFIX-${variant}.log"
     fi
 
-    # make an ad-hoc dockerfile
-    cat <<EOF >>$dockerfile
+    # make an ad-hoc dockerfile -- use WORKDIR to avoid path clobbering
+    cat >"$dockerfile" <<EOF
 FROM python:$PACKAGE_MAX_PYTHON_VERSION
+WORKDIR /app
 COPY . .
 RUN pip install --no-cache-dir $pip_install_pkg
 CMD []
 EOF
 
     # and build it
-    image="gen-$(basename $PYDL_FNAME):local"
-    docker build -t $image --file $dockerfile $REPO_PATH
+    image="gen-$(basename "$PYDL_FNAME"):local"
+    docker build -t "$image" --file "$dockerfile" "$REPO_PATH"
 
     # generate PYDL!
-    $GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh \
-        $image \
+    "$GITHUB_ACTION_PATH/generate_dep_logs/gen-deps-within-container.sh" \
+        "$image" \
         "$PYDL_FNAME" \
         "from \`pip install $pip_install_pkg\`" \
         &
