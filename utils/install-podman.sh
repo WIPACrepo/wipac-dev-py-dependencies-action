@@ -8,11 +8,15 @@ echo "$(basename "$0")..." && echo
 # Install Podman from 'podman-static' release (fast, no apt, no checksum)
 # https://github.com/mgoltzsche/podman-static
 #
-# Default: latest release; override with PODMAN_STATIC_VERSION env var.
+# Requires: PODMAN_STATIC_VERSION (e.g. v5.6.1)
 #
 ########################################################################
 
-PODMAN_STATIC_VERSION="${PODMAN_STATIC_VERSION:-v5.6.1}" # e.g. v5.6.1 or "latest"
+if [[ -z ${PODMAN_STATIC_VERSION:-} ]]; then
+    echo "::error:: Environment variable PODMAN_STATIC_VERSION is required (e.g. v5.6.1)"
+    exit 1
+fi
+
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "${WORKDIR}"' EXIT
 

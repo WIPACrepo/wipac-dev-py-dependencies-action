@@ -81,6 +81,7 @@ runs:
         ACTION_REPOSITORY: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         GITHUB_ACTION_PATH: ${{ github.action_path }}
         DOCKER_TAG_TO_PYDL: "py-dep-this"
+        PODMAN_STATIC_VERSION: v5.6.1  # update as needed
       run: |
         # step: Build dependencies.log (and commit)
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
