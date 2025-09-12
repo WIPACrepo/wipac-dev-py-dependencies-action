@@ -6,34 +6,80 @@ set -e
 
 ########################################################################
 #
-# install podman using kubic
-# https://podman.io/docs/installation#debian
+# Install Podman from 'podman-static' release (fast, no apt)
+# - Repo: https://github.com/mgoltzsche/podman-static
+# - Default version can be overridden via PODMAN_STATIC_VERSION env var
 #
 ########################################################################
 
-sudo mkdir -p /etc/apt/keyrings
+# --- config ------------------------------------------------------------------
+PODMAN_STATIC_VERSION="${PODMAN_STATIC_VERSION:-v5.6.0}" # pin a known-good release
+WORKDIR="$(mktemp -d)"
+trap 'rm -rf "${WORKDIR}"' EXIT
 
-OS="xUbuntu_22.04"
-STABLE="stable"
+# Map kernel arch to release artifact arch
+ARCH="$(uname -m)"
+case "${ARCH}" in
+    x86_64) PKG_ARCH="amd64" ;;
+    aarch64) PKG_ARCH="arm64" ;;
+    *)
+        echo "::error::Unsupported architecture: ${ARCH}"
+        exit 1
+        ;;
+esac
 
-curl -fsSL https://download.opensuse.org/repositories/devel:kubic:libcontainers:$STABLE/$OS/Release.key |
-    gpg --dearmor |
-    sudo tee /etc/apt/keyrings/devel_kubic_libcontainers_$STABLE.gpg >/dev/null
+TARBALL="podman-linux-${PKG_ARCH}.tar.gz"
+BASE_URL="https://github.com/mgoltzsche/podman-static/releases/download/${PODMAN_STATIC_VERSION}"
 
-# -> see https://github.com/openSUSE/MirrorCache/issues/428#issuecomment-1814992424
-echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/devel_kubic_libcontainers_$STABLE.gpg]\
-    https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/$STABLE/$OS/ /" |
-    sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:$STABLE.list >/dev/null
+# --- download + verify --------------------------------------------------------
+echo "Fetching podman-static ${PODMAN_STATIC_VERSION} for ${PKG_ARCH}..."
+curl -fsSL -o "${WORKDIR}/${TARBALL}" "${BASE_URL}/${TARBALL}"
+curl -fsSL -o "${WORKDIR}/${TARBALL}.sha256" "${BASE_URL}/${TARBALL}.sha256"
 
-# install deps
-sudo apt-get update
-sudo apt-get -y upgrade
-# https://github.com/containers/podman/issues/21024#issuecomment-1859449360
-wget https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/$STABLE/$OS/amd64/conmon_2.1.2~0_amd64.deb -O /tmp/conmon_2.1.2.deb
-sudo apt install /tmp/conmon_2.1.2.deb
+# normalize checksum file format for sha256sum -c
+if ! grep -q "${TARBALL}" "${WORKDIR}/${TARBALL}.sha256"; then
+    # If file only contains the hash, append filename
+    HASH="$(cat "${WORKDIR}/${TARBALL}.sha256" | tr -d ' \n\r')"
+    echo "${HASH}  ${TARBALL}" >"${WORKDIR}/${TARBALL}.sha256"
+fi
 
-# Install Podman
-sudo apt-get -y install podman
+(
+    cd "${WORKDIR}"
+    sha256sum -c "${TARBALL}.sha256"
+)
+
+# --- install ------------------------------------------------------------------
+echo "Extracting and installing to /usr/local ..."
+tar -xzf "${WORKDIR}/${TARBALL}" -C "${WORKDIR}"
+
+# The archive layout is podman-linux-${PKG_ARCH}/usr/... and possibly etc/...
+ROOT_DIR="${WORKDIR}/podman-linux-${PKG_ARCH}"
+
+# Binaries & libs
+sudo cp -r "${ROOT_DIR}/usr/"* /usr/local/
+
+# Default container configs (if present)
+if [ -d "${ROOT_DIR}/etc" ]; then
+    sudo mkdir -p /etc/containers
+    sudo cp -r "${ROOT_DIR}/etc/"* /etc/containers/
+fi
+
+# --- sanity check -------------------------------------------------------------
+echo "Installed binaries:"
+command -v podman || true
+command -v buildah || true
+command -v runc || true
+command -v conmon || true
+command -v netavark || true
+command -v aardvark-dns || true
+
+echo
+podman --version || {
+    echo "::error::Podman did not install correctly"
+    exit 1
+}
+
+# Note: For rootless performance, fuse-overlayfs may be used automatically by static builds.
+# Networking uses netavark/aardvark-dns from the archive. Systemd integration is not provided.
 
 sleep 0.1 && echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
