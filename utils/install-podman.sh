@@ -13,7 +13,7 @@ set -e
 ########################################################################
 
 # --- config ------------------------------------------------------------------
-PODMAN_STATIC_VERSION="${PODMAN_STATIC_VERSION:-v5.6.0}" # pin a known-good release
+PODMAN_STATIC_VERSION="${PODMAN_STATIC_VERSION:-v5.6.1}" # pin a known-good release
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "${WORKDIR}"' EXIT
 
@@ -33,8 +33,10 @@ BASE_URL="https://github.com/mgoltzsche/podman-static/releases/download/${PODMAN
 
 # --- download + verify --------------------------------------------------------
 echo "Fetching podman-static ${PODMAN_STATIC_VERSION} for ${PKG_ARCH}..."
+set -x
 curl -fsSL -o "${WORKDIR}/${TARBALL}" "${BASE_URL}/${TARBALL}"
 curl -fsSL -o "${WORKDIR}/${TARBALL}.sha256" "${BASE_URL}/${TARBALL}.sha256"
+set +x
 
 # normalize checksum file format for sha256sum -c
 if ! grep -q "${TARBALL}" "${WORKDIR}/${TARBALL}.sha256"; then
