@@ -45,30 +45,11 @@ runs:
              > artifacts.json
         echo "##[endgroup]"
 
-        python3 - <<'PY'
-        import json, os, sys
-        with open("artifacts.json") as f:
-            data = json.load(f)
-
-        branch = os.environ["BRANCH"]
-        exclude_run = int(os.environ["RUN_ID"])
-
-        artifacts = [
-            a for a in data.get("artifacts", [])
-            if not a.get("expired", False)
-            and a.get("workflow_run", {}).get("head_branch") == branch
-            and int(a.get("workflow_run", {}).get("id", 0)) != exclude_run
-        ]
-
-        if not artifacts:
-            print("::error::No previous py-dependencies-logs artifact found on this branch.")
-            sys.exit(1)
-
-        latest = max(artifacts, key=lambda a: a["created_at"])
-        print(f"::notice::Using artifact id={latest['id']} (run {latest['workflow_run']['id']}) created_at={latest['created_at']}")
-        with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-            out.write(f"artifact_name={latest['name']}\n")
-        PY
+        python "${{ github.action_path }}/action-scripts/select_latest_branch_artifact.py" \
+          --artifacts-json artifacts.json \
+          --branch "$BRANCH" \
+          --exclude-run-id "$RUN_ID" \
+          --github-output "$GITHUB_OUTPUT"
       shell: bash
 
     - name: "Download prior artifact"
@@ -120,18 +101,7 @@ runs:
         pip3 install wipac-dev-tools[semver]
         echo "##[endgroup]"
 
-        MAX_PY=$(python -c "
-        from wipac_dev_tools import semver_parser_tools
-
-        top_python = semver_parser_tools.get_latest_py3_release()
-        all_matches = semver_parser_tools.list_all_majmin_versions(
-          major=top_python[0],
-          semver_range=semver_parser_tools.get_py_semver_range_for_project(),
-          max_minor=top_python[1],
-        )
-
-        print(f'{max(all_matches)[0]}.{max(all_matches)[1]}')
-        ")
+        MAX_PY=$(python "${{ github.action_path }}/action-scripts/compute_max_python.py")
         echo "detected project's max supported python: $MAX_PY"
 
         rm -rf action_venv/
@@ -206,5 +176,5 @@ runs:
       run: |
         # step: "Dump artifact contents"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        /bin/bash "${{ github.action_path }}/scripts/dump_artifacts.sh" artifacts
+        /bin/bash "${{ github.action_path }}/action-scripts/dump_artifacts.sh" artifacts
       shell: bash
