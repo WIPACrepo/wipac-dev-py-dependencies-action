@@ -142,11 +142,11 @@ runs:
             echo "##[endgroup]"
         fi
 
-    - name: "Set DO_GENERATION variable"
+    - name: "Set 'DO_GENERATION' (env) and 'do_generation' (output) variables"
       id: set_gen_flag
       shell: bash
       run: |
-        # step: "Set DO_GENERATION variable"
+        # step: "Set 'DO_GENERATION' (env) and 'do_generation' (output) variables"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
         if [[ "${{ steps.recent.outputs.ran_recently }}" == "false" || \
