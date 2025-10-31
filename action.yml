@@ -14,7 +14,6 @@ runs:
 
     - uses: actions/checkout@v5
       with:
-        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         ref: ${{ github.ref }}  # dont lock to sha (action needs to push)
         fetch-depth: 0  # setuptools-scm needs to access git tags
 
@@ -159,7 +158,6 @@ runs:
 
     - uses: actions/checkout@v5
       with:
-        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         ref: ${{ github.ref }}  # dont lock to sha (action needs to push)
         fetch-depth: 0  # setuptools-scm needs to access git tags
 
