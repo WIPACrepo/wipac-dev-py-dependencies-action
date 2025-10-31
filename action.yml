@@ -6,11 +6,20 @@ inputs:
     description: 'A comma-delimited list of Dockerfile* filepaths to skip'
     required: false
     default: ""
+  only_precheck:
+    description: 'If true, stop after deciding DO_GENERATION (preflight only)'
+    required: false
+    default: "false"
+
+outputs:
+  do_generation:
+    description: "true to generate; false to reuse prior"
+    value: ${{ steps.set_gen_flag.outputs.do_generation }}
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
 
     - uses: actions/checkout@v5
       with:
@@ -19,7 +28,7 @@ runs:
 
 
     ####################################################################################
-    # PREFLIGHT CHECKLIST:
+    # PREFLIGHT CHECKLIST -- env.DO_GENERATION + outputs.do_generation:
     #   1) Was a recent run detected (non-default branches only)?
     #      - no  -> generate files
     #      - yes -> go to (2)
@@ -133,20 +142,23 @@ runs:
             echo "##[endgroup]"
         fi
 
-    - name: "Set DO_GENERATE_PYDEPS variable"
+    - name: "Set DO_GENERATION variable"
+      id: set_gen_flag
       shell: bash
       run: |
-        # step: "Set DO_GENERATE_PYDEPS variable"
+        # step: "Set DO_GENERATION variable"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
-          if [[ "${{ steps.recent.outputs.ran_recently }}" == "false" || \
-                "${{ steps.pyproj_changed.outputs.changed }}" == "true" ]]; then
-              echo "DO_GENERATE_PYDEPS=true" >> "$GITHUB_ENV"
-              echo "::notice::Proceeding with generation (no recent run or pyproject.toml changed)."
-          else
-              echo "DO_GENERATE_PYDEPS=false" >> "$GITHUB_ENV"
-              echo "::notice::Reusing previous run (recent and unchanged)."
-          fi
+        if [[ "${{ steps.recent.outputs.ran_recently }}" == "false" || \
+              "${{ steps.pyproj_changed.outputs.changed }}" == "true" ]]; then
+          echo "DO_GENERATION=true"  >> "$GITHUB_ENV"
+          echo "do_generation=true"  >> "$GITHUB_OUTPUT"
+          echo "Proceeding with generation (no recent run or pyproject.toml changed)."
+        else
+          echo "DO_GENERATION=false" >> "$GITHUB_ENV"
+          echo "do_generation=false" >> "$GITHUB_OUTPUT"
+          echo "Reusing previous run (recent and unchanged)."
+        fi
 
 
     ####################################################################################
@@ -154,7 +166,7 @@ runs:
     ####################################################################################
 
     - name: "Show prior artifact info"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'false' }}
+      if: ${{ env.DO_GENERATION == 'false' }}
       shell: bash
       run: |
         # step: "Show prior artifact info"
@@ -185,13 +197,13 @@ runs:
     ####################################################################################
 
     - uses: actions/checkout@v5
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       with:
         ref: ${{ github.ref }}  # dont lock to sha (action needs to push)
         fetch-depth: 0  # setuptools-scm needs to access git tags
 
     - name: "Check if old files need to be removed"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       shell: bash
       run: |
         # step: "Check if old files need to be removed"
@@ -202,7 +214,7 @@ runs:
         fi
 
     - name: "Set shared env"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       shell: bash
       run: |
         # step: "Set shared env"
@@ -216,7 +228,7 @@ runs:
         echo "PYDL_FNAME_PREFIX=$PYDL_FNAME_PREFIX" >> "$GITHUB_ENV"
 
     - name: "Figure Project's Max Py Version"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       shell: bash
       run: |
         # step: "Figure Project's Max Py Version"
@@ -236,7 +248,7 @@ runs:
         echo "PACKAGE_MAX_PYTHON_VERSION=$MAX_PY" >> "$GITHUB_ENV"
 
     - name: "pip install reqs"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       shell: bash
       run: |
         # step: "pip install reqs"
@@ -247,7 +259,7 @@ runs:
         echo "##[endgroup]"
 
     - name: "Build dependencies.log (and commit)"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       env:
         ACTION_REPOSITORY: ${{ github.action_repository }}
         GITHUB_ACTION_PATH: ${{ github.action_path }}
@@ -272,7 +284,7 @@ runs:
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     - name: "Fetch default branch"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       shell: bash
       run: |
         # step: "Fetch default branch"
@@ -288,7 +300,7 @@ runs:
         echo "##[endgroup]"
 
     - name: "Generate diffs into artifacts dir"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
       shell: bash
@@ -334,7 +346,7 @@ runs:
         done
 
     - name: "Upload as artifacts"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: py-dependencies-logs
@@ -342,7 +354,7 @@ runs:
         if-no-files-found: error
 
     - name: "Dump artifact contents"
-      if: ${{ env.DO_GENERATE_PYDEPS == 'true' }}
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       shell: bash
       run: |
         # step: "Dump artifact contents"
