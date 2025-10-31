@@ -173,7 +173,7 @@ runs:
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
         run_url="https://github.com/${{ github.repository }}/actions/runs/${{ steps.find_artifact.outputs.run_id }}"
-        msg="Recent run detected and pyproject.toml unchanged — see $run_url"
+        msg="Recent run detected and pyproject.toml unchanged — skipping generation. See $run_url"
         echo "::notice::$msg"
         echo "$msg" >> "$GITHUB_STEP_SUMMARY"
 
