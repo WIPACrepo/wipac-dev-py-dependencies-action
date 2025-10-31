@@ -12,9 +12,80 @@ runs:
   steps:
     - uses: actions/setup-python@v4
 
-    - name: Check if old files need to be removed
+    ####################################################################################
+    # IF RECENT RUN DETECTED, USE PREVIOUS ARTIFACT
+    ####################################################################################
+
+    - uses: WIPACrepo/wipac-dev-recent-run-check-action@v1.0
+      id: recent
+      with:
+        window-seconds: 3600
+
+    - if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      run: echo "Recent run detected — reusing the last artifact for this branch."
+      shell: bash
+
+    - name: "Find latest prior artifact on this branch"
+      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      id: find_artifact
+      env:
+        GH_TOKEN: ${{ github.token }}
+        BRANCH: ${{ github.ref_name }}
+        RUN_ID: ${{ github.run_id }}
       run: |
-        # step: Check if old files need to be removed
+        # step: "Find latest prior artifact on this branch"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        REPO="${{ github.repository }}"
+
+        echo "##[group]fetching artifacts list"
+        curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
+             -H "Accept: application/vnd.github+json" \
+             "https://api.github.com/repos/${REPO}/actions/artifacts?name=py-dependencies-logs&per_page=100" \
+             > artifacts.json
+        echo "##[endgroup]"
+
+        python3 - <<'PY'
+        import json, os, sys
+        with open("artifacts.json") as f:
+            data = json.load(f)
+
+        branch = os.environ["BRANCH"]
+        exclude_run = int(os.environ["RUN_ID"])
+
+        artifacts = [
+            a for a in data.get("artifacts", [])
+            if not a.get("expired", False)
+            and a.get("workflow_run", {}).get("head_branch") == branch
+            and int(a.get("workflow_run", {}).get("id", 0)) != exclude_run
+        ]
+
+        if not artifacts:
+            print("::error::No previous py-dependencies-logs artifact found on this branch.")
+            sys.exit(1)
+
+        latest = max(artifacts, key=lambda a: a["created_at"])
+        print(f"::notice::Using artifact id={latest['id']} (run {latest['workflow_run']['id']}) created_at={latest['created_at']}")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+            out.write(f"artifact_name={latest['name']}\n")
+        PY
+      shell: bash
+
+    - name: "Download prior artifact"
+      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ steps.find_artifact.outputs.artifact_name }}
+        path: artifacts
+
+    ####################################################################################
+    # NO RECENT RUN DETECTED — PROCEEDING TO GENERATE
+    ####################################################################################
+
+    - name: "Check if old files need to be removed"
+      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      run: |
+        # step: "Check if old files need to be removed"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         if find . -name "dependencies*.log" -type f | grep -q .; then
             echo "::error::dependencies*.log must be manually deleted -- v3 doesn't use these files"
@@ -22,23 +93,24 @@ runs:
         fi
       shell: bash
 
-    - name: Set shared env
+    - name: "Set shared env"
+      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
       run: |
-        # step: Set shared env
+        # step: "Set shared env"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        
+
         STORE_PYDL_FILES_HERE="/tmp/py-dep-logs"
-        mkdir -p $STORE_PYDL_FILES_HERE
+        mkdir -p "$STORE_PYDL_FILES_HERE"
         echo "STORE_PYDL_FILES_HERE=$STORE_PYDL_FILES_HERE" >> "$GITHUB_ENV"
-        
+
         PYDL_FNAME_PREFIX="py-dependencies"
         echo "PYDL_FNAME_PREFIX=$PYDL_FNAME_PREFIX" >> "$GITHUB_ENV"
       shell: bash
 
-
-    - name: Figure Project's Max Py Version
+    - name: "Figure Project's Max Py Version"
+      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
       run: |
-        # step: Figure Project's Max Py Version
+        # step: "Figure Project's Max Py Version"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
         echo "##[group]installs"
@@ -47,7 +119,7 @@ runs:
         . action_venv/bin/activate
         pip3 install wipac-dev-tools[semver]
         echo "##[endgroup]"
-        
+
         MAX_PY=$(python -c "
         from wipac_dev_tools import semver_parser_tools
 
@@ -61,14 +133,15 @@ runs:
         print(f'{max(all_matches)[0]}.{max(all_matches)[1]}')
         ")
         echo "detected project's max supported python: $MAX_PY"
-        
+
         rm -rf action_venv/
         echo "PACKAGE_MAX_PYTHON_VERSION=$MAX_PY" >> "$GITHUB_ENV"
       shell: bash
 
-    - name: pip install reqs
+    - name: "pip install reqs"
+      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
       run: |
-        # step: pip install reqs
+        # step: "pip install reqs"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         echo "##[group]pip installs"
         sudo apt-get update
@@ -76,110 +149,62 @@ runs:
         echo "##[endgroup]"
       shell: bash
 
-    - name: Build dependencies.log (and commit)
+    - name: "Build dependencies.log (and commit)"
+      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
       env:
         ACTION_REPOSITORY: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
         GITHUB_ACTION_PATH: ${{ github.action_path }}
         DOCKER_TAG_TO_PYDL: "py-dep-this"
         PODMAN_STATIC_VERSION: v5.6.1  # update as needed
       run: |
-        # step: Build dependencies.log (and commit)
+        # step: "Build dependencies.log (and commit)"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        
+
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        
+
         export REPO_PATH=$(pwd)
         export DOCKERFILE_IGNORE_PATHS="${{ inputs.dockerfile_ignore_paths }}"
-        
+
         # run script
         echo "##[group]generating dep logs"
-        /bin/bash $GITHUB_ACTION_PATH/action.sh
+        /bin/bash "$GITHUB_ACTION_PATH/action.sh"
         echo "##[endgroup]"
-        
-        ls $STORE_PYDL_FILES_HERE
-        
-        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
+        ls $STORE_PYDL_FILES_HERE
+
+        echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
       shell: bash
 
-    - name: Fetch default branch
+    - name: "Fetch default branch"
+      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
       run: |
-        # step: Fetch default branch
+        # step: "Fetch default branch"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        
+
         echo "##[group]fetching default branch"
-        
+
         default_branch="$(git remote show origin | awk '/HEAD branch/ {print $NF}')"
         echo "Default branch is $default_branch"
         git fetch origin "$default_branch":"refs/remotes/origin/$default_branch"
         echo "DEFAULT_BRANCH=$default_branch" >> "$GITHUB_ENV"
-        
+
         echo "##[endgroup]"
       shell: bash
 
-    - name: Dump diffs to console
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-      run: |
-        # step: Dump diffs to console
-        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+    ####################################################################################
+    # ALWAYS: UPLOAD, THEN DUMP ARTIFACT CONTENTS
+    ####################################################################################
 
-        mkdir -p artifacts
-
-        shopt -s globstar nullglob
-        for file in $STORE_PYDL_FILES_HERE/*.log; do
-            fname=$(basename "$file")
-            old_file=$(mktemp)
-
-            echo " "
-            echo " "
-            echo " "
-            echo "====> $file <$(printf '=%.0s' $(seq 1 $((72 - 7 - ${#file}))))"
-            echo " "
-
-            cp "$file" "artifacts/$fname"
-            diff_file="artifacts/${fname%.log}.diff"
-
-            python3 "${{ github.action_path }}/utils/get_old_pydl_file.py" \
-                "$fname" \
-                --branch "$DEFAULT_BRANCH" \
-                --repo "${{ github.repository }}" \
-                --dest "$old_file"
-
-            # does $old_file have contents? if so, diff it w/ the generated log file
-            if [ ! -s "$old_file" ]; then
-                # it's empty -> log must be new
-                echo "<new file>" > "$diff_file"
-                echo "::notice::file is new (no old version)"
-                cat "$file"
-                continue
-            else
-                # not empty -> diff them
-                echo "::notice::diff: $file"
-                sed -i ':a; /./!{$d;N;ba};' "$old_file"  # remove trailing blank lines
-                sed -i ':a; /./!{$d;N;ba};' "$file"      # remove trailing blank lines
-                # NOTE: 'diff' exits w/ 0 (no change), 1 (changes), >1 (error)
-                fmt_opts=(
-                  --old-line-format='- %L'
-                  --new-line-format='+ %L'
-                  --unchanged-line-format='  %L'
-                )
-                if ! diff "${fmt_opts[@]}" "$old_file" "$file" > "$diff_file"; then
-                    # also print with color, but don't save ANSI to file
-                    diff --color=always "${fmt_opts[@]}" "$old_file" "$file" || true
-                else
-                    echo "<no changes>" > "$diff_file"
-                    echo "::notice::$fname is unchanged"
-                fi
-            fi
-        done
-        echo " "
-
-      shell: bash
-
-    - name: Upload as artifacts
+    - name: "Upload as artifacts"
       uses: actions/upload-artifact@v4
       with:
         name: py-dependencies-logs
         path: artifacts/
         if-no-files-found: error
+
+    - name: "Dump artifact contents"
+      run: |
+        # step: "Dump artifact contents"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+        /bin/bash "${{ github.action_path }}/scripts/dump_artifacts.sh" artifacts
+      shell: bash
