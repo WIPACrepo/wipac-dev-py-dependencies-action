@@ -173,13 +173,9 @@ runs:
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
         run_url="https://github.com/${{ github.repository }}/actions/runs/${{ steps.find_artifact.outputs.run_id }}"
-
-        {
-            printf '%s\n' "::notice::Recent run detected and pyproject.toml unchanged — see $run_url"
-            printf '%s\n' 'Latest prior artifact: '"'"'${{ steps.find_artifact.outputs.artifact_name }}'"'"''
-            printf '%s\n' 'From run ID: ${{ steps.find_artifact.outputs.run_id }}'
-            printf '%s\n' 'View in GitHub Actions:'
-        } | tee -a "$GITHUB_STEP_SUMMARY"
+        msg = "Recent run detected and pyproject.toml unchanged — see $run_url"
+        echo "::notice::$msg"
+        echo "$msg" >> "$GITHUB_STEP_SUMMARY"
 
 
     ####################################################################################
