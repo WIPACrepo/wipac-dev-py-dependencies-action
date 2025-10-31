@@ -12,6 +12,13 @@ runs:
   steps:
     - uses: actions/setup-python@v4
 
+    - uses: actions/checkout@v5
+      with:
+        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        ref: ${{ github.ref }}  # dont lock to sha (action needs to push)
+        fetch-depth: 0  # setuptools-scm needs to access git tags
+
+
     ####################################################################################
     # PREFLIGHT CHECKLIST:
     #   1) Was a recent run detected (non-default branches only)?
@@ -149,6 +156,12 @@ runs:
     ####################################################################################
     # GENERATE PATH: recent==false OR pyproj_changed==true → produce logs + diffs
     ####################################################################################
+
+    - uses: actions/checkout@v5
+      with:
+        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        ref: ${{ github.ref }}  # dont lock to sha (action needs to push)
+        fetch-depth: 0  # setuptools-scm needs to access git tags
 
     - name: "Check if old files need to be removed"
       if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
