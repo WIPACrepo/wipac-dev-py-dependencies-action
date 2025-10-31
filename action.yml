@@ -55,7 +55,6 @@ runs:
           --branch "$BRANCH" \
           --exclude-run-id "$RUN_ID"
 
-    # Compare pyproject.toml between current tree and the commit that produced that artifact
     - name: "Check pyproject.toml against artifact run"
       if: ${{ steps.recent.outputs.ran_recently == 'true' }}
       id: pyproj_changed
@@ -66,13 +65,16 @@ runs:
         # step: "Check pyproject.toml against artifact run"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
+        ########################################################################
+        # Preconditions
+        ########################################################################
         if [[ -z "${SHA:-}" ]]; then
             echo "::warning::No head_sha from artifact; forcing regenerate."
             echo "changed=true" >> "$GITHUB_OUTPUT"
             exit 0
         fi
 
-        # Ensure we can read that commit
+        # Fetch the commit tree that produced the prior artifact (best effort)
         git fetch --no-tags --depth=1 origin "${SHA}" || true
         if ! git cat-file -e "${SHA}^{tree}"; then
             echo "::warning::Cannot read tree for ${SHA}; forcing regenerate."
@@ -80,32 +82,62 @@ runs:
             exit 0
         fi
 
-        have_now=0; [[ -f pyproject.toml ]] && have_now=1
-        have_then=0; git show "${SHA}:pyproject.toml" >/dev/null 2>&1 && have_then=1
+        ########################################################################
+        # Materialize comparable files
+        ########################################################################
+        tmp_now="$(mktemp)"
+        tmp_then="$(mktemp)"
 
-        if [[ "${have_now}" -eq 1 && "${have_then}" -eq 1 ]]; then
-            if git diff --quiet "${SHA}" -- pyproject.toml; then
-                echo "::notice::pyproject.toml unchanged since ${SHA}; safe to reuse."
-                echo "changed=false" >> "$GITHUB_OUTPUT"
-            else
-                echo "::warning::pyproject.toml changed since ${SHA}; will regenerate."
-                echo "changed=true" >> "$GITHUB_OUTPUT"
-            fi
+        # Current repo state
+        if [[ -f pyproject.toml ]]; then
+            cp pyproject.toml "${tmp_now}"
         else
-            echo "::warning::pyproject.toml presence differs; will regenerate."
+            # Create an explicit empty file to represent absence (avoid ': > file' style)
+            echo -n > "${tmp_now}"
+        fi
+
+        # File from the prior artifact's commit
+        if git show "${SHA}:pyproject.toml" > "${tmp_then}" 2>/dev/null; then
+            :
+        else
+            echo -n > "${tmp_then}"
+        fi
+
+        ########################################################################
+        # Normalize trailing newlines to avoid noisy diffs
+        ########################################################################
+        sed -i ':a; /./!{$d;N;ba};' "${tmp_now}" || true
+        sed -i ':a; /./!{$d;N;ba};' "${tmp_then}" || true
+
+        ########################################################################
+        # Compare and emit outputs
+        ########################################################################
+        if diff --quiet --strip-trailing-cr "${tmp_then}" "${tmp_now}"; then
+            echo "::notice::pyproject.toml unchanged since ${SHA}; safe to reuse."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+            echo "::warning::pyproject.toml changed since ${SHA}; will regenerate."
             echo "changed=true" >> "$GITHUB_OUTPUT"
+
+            echo "##[group]pyproject.toml diff (previous → current)"
+            diff \
+                --unified=3 \
+                --label "then:pyproject.toml@${SHA}" "${tmp_then}" \
+                --label "now:pyproject.toml@${GITHUB_SHA}" "${tmp_now}" \
+                || true
+            echo "##[endgroup]"
         fi
 
 
     ####################################################################################
-    # REUSE PATH: recent==true AND pyproj_changed==false → just link to the prior run
+    # SKIP PATH: recent==true AND pyproj_changed==false → just link to the prior run
     ####################################################################################
 
-    - name: "Reuse: show prior artifact info"
+    - name: "show prior artifact info"
       if: ${{ steps.recent.outputs.ran_recently == 'true' && steps.pyproj_changed.outputs.changed == 'false' }}
       shell: bash
       run: |
-        # step: "Reuse: show prior artifact info"
+        # step: "show prior artifact info"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         echo "::notice::Recent run detected and pyproject.toml unchanged."
         echo "::notice::Latest prior artifact: '${{ steps.find_artifact.outputs.artifact_name }}'"
