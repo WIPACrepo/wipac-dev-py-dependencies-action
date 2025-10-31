@@ -333,7 +333,7 @@ runs:
 
     - name: "Upload as artifacts"
       if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: py-dependencies-logs
         path: artifacts/
