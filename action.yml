@@ -13,7 +13,13 @@ runs:
     - uses: actions/setup-python@v4
 
     ####################################################################################
-    # IF RECENT RUN DETECTED, USE PREVIOUS ARTIFACT (applies only to non-default branches)
+    # PREFLIGHT CHECKLIST:
+    #   1. WAS A RECENT RUN DETECTED? (applies only to non-default branches)
+    #      * no  -> generate files
+    #      * yes -> go to #2
+    #   2. DID pyproject.toml CHANGE SINCE THAT RECENT RUN?
+    #      * no  -> link to previous run
+    #      * yes -> generate files
     ####################################################################################
 
     - uses: WIPACrepo/wipac-dev-recent-run-check-action@v1.0
@@ -22,12 +28,58 @@ runs:
         window-seconds: 3600
         always-false-on-default-branch: true
 
-    - if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+    - name: "Check pyproject.toml against artifact run"
+      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      id: pyproj_changed
+      env:
+        SHA: ${{ steps.find_artifact.outputs.head_sha }}
+      run: |
+        # step: "Check pyproject.toml against artifact run"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        if [[ -z "${SHA:-}" ]]; then
+            echo "::warning::No head_sha from artifact; forcing regenerate."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+        fi
+
+        # ensure we have that commit locally
+        git fetch --no-tags --depth=1 origin "${SHA}" || true
+
+        # If pyproject.toml doesn't exist in either tree, treat as 'changed' to be safe
+        if ! git cat-file -e "${SHA}^{tree}"; then
+            echo "::warning::Cannot read tree for ${SHA}; forcing regenerate."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+        fi
+
+        have_now=0; [[ -f pyproject.toml ]] && have_now=1
+        have_then=0; git show "${SHA}:pyproject.toml" >/dev/null 2>&1 && have_then=1
+
+        if [[ "${have_now}" -eq 1 && "${have_then}" -eq 1 ]]; then
+            if git diff --quiet "${SHA}" -- pyproject.toml; then
+                echo "::notice::pyproject.toml unchanged since ${SHA}; safe to reuse."
+                echo "changed=false" >> "$GITHUB_OUTPUT"
+            else
+                echo "::warning::pyproject.toml changed since ${SHA}; will regenerate."
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+            fi
+        else
+            echo "::warning::pyproject.toml presence differs; will regenerate."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
+    ####################################################################################
+    # IF RECENT RUN DETECTED, USE PREVIOUS ARTIFACT (applies only to non-default branches)
+    ####################################################################################
+
+    - if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
       run: echo "Recent run detected — reusing the last artifact for this branch."
       shell: bash
 
     - name: "Find latest prior artifact on this branch"
-      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
       id: find_artifact
       env:
         GH_TOKEN: ${{ github.token }}
@@ -53,7 +105,7 @@ runs:
       shell: bash
 
     - name: "Show selected artifact"
-      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
       run: |
         # step: "Show selected artifact"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -62,7 +114,7 @@ runs:
       shell: bash
 
     - name: "Download prior artifact"
-      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
       uses: actions/download-artifact@v4
       with:
         name: ${{ steps.find_artifact.outputs.artifact_name }}
