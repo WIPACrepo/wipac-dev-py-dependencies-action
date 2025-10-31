@@ -52,14 +52,23 @@ runs:
           --exclude-run-id "$RUN_ID"
       shell: bash
 
+    - name: "Show selected artifact"
+      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      run: |
+        # step: "Show selected artifact"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+        echo "artifact_name=${{ steps.find_artifact.outputs.artifact_name }}"
+        echo "from run_id=${{ steps.find_artifact.outputs.run_id }}"
+      shell: bash
+
     - name: "Download prior artifact"
       if: ${{ steps.recent.outputs.ran_recently == 'true' }}
       uses: actions/download-artifact@v4
       with:
         name: ${{ steps.find_artifact.outputs.artifact_name }}
         path: artifacts
-        repository: ${{ github.repository }}
         run-id: ${{ steps.find_artifact.outputs.run_id }}
+        github-token: ${{ github.token }}
 
 
     ####################################################################################
