@@ -6,39 +6,218 @@ inputs:
     description: 'A comma-delimited list of Dockerfile* filepaths to skip'
     required: false
     default: ""
+  only_precheck:
+    description: 'If true, stop after deciding DO_GENERATION (preflight only)'
+    required: false
+    default: "false"
+
+outputs:
+  do_generation:
+    description: "true to generate; false to reference prior"
+    value: ${{ steps.set_gen_flag.outputs.do_generation }}
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
 
-    - name: Check if old files need to be removed
+    - uses: actions/checkout@v5
+      with:
+        ref: ${{ github.sha }}  # lock to triggered commit (stable input for analysis)
+        fetch-depth: 0  # setuptools-scm needs to access git tags
+
+
+    ####################################################################################
+    # PREFLIGHT CHECKLIST -- env.DO_GENERATION + outputs.do_generation:
+    #   1) Was a recent run detected (non-default branches only)?
+    #      - no  -> generate files
+    #      - yes -> go to (2)
+    #   2) Did pyproject.toml change since that recent run?
+    #      - no  -> link to previous run (no generation)
+    #      - yes -> generate files
+    ####################################################################################
+
+    - uses: WIPACrepo/wipac-dev-recent-run-check-action@v1.0
+      id: recent
+      with:
+        window-seconds: 3600
+        always-false-on-default-branch: true
+        scope: job
+
+    - name: "Find latest prior artifact on this branch"
+      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      id: find_artifact
+      env:
+        GH_TOKEN: ${{ github.token }}
+        BRANCH: ${{ github.ref_name }}
+        RUN_ID: ${{ github.run_id }}
+      shell: bash
       run: |
-        # step: Check if old files need to be removed
+        # step: "Find latest prior artifact on this branch"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        REPO="${{ github.repository }}"
+
+        echo "##[group]fetching artifacts list"
+        curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
+             -H "Accept: application/vnd.github+json" \
+             "https://api.github.com/repos/${REPO}/actions/artifacts?name=py-dependencies-logs&per_page=100" \
+             > artifacts-response.json
+        echo "##[endgroup]"
+
+        python "${{ github.action_path }}/action-scripts/select_latest_branch_artifact.py" \
+          --artifacts-json artifacts-response.json \
+          --branch "$BRANCH" \
+          --exclude-run-id "$RUN_ID"
+
+    - name: "Check pyproject.toml against artifact run"
+      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      id: pyproj_changed
+      env:
+        SHA: ${{ steps.find_artifact.outputs.head_sha }}
+      shell: bash
+      run: |
+        # step: "Check pyproject.toml against artifact run"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        ########################################################################
+        # Preconditions
+        ########################################################################
+        if [[ -z "${SHA:-}" ]]; then
+            echo "::warning::No head_sha from artifact; forcing regenerate."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+        fi
+
+        # Fetch the commit tree that produced the prior artifact (best effort)
+        git fetch --no-tags --depth=1 origin "${SHA}" || true
+        if ! git cat-file -e "${SHA}^{tree}"; then
+            echo "::warning::Cannot read tree for ${SHA}; forcing regenerate."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+        fi
+
+        ########################################################################
+        # Materialize comparable files
+        ########################################################################
+        tmp_now="$(mktemp)"
+        tmp_then="$(mktemp)"
+
+        # Current repo state
+        if [[ -f pyproject.toml ]]; then
+            cp pyproject.toml "${tmp_now}"
+        else
+            # Create an explicit empty file to represent absence (avoid ': > file' style)
+            echo -n > "${tmp_now}"
+        fi
+
+        # File from the prior artifact's commit
+        if git show "${SHA}:pyproject.toml" > "${tmp_then}" 2>/dev/null; then
+            :
+        else
+            echo -n > "${tmp_then}"
+        fi
+
+        ########################################################################
+        # Normalize trailing newlines to avoid noisy diffs
+        ########################################################################
+        sed -i ':a; /./!{$d;N;ba};' "${tmp_now}" || true
+        sed -i ':a; /./!{$d;N;ba};' "${tmp_then}" || true
+
+        ########################################################################
+        # Compare and emit outputs
+        ########################################################################
+        if diff -q "${tmp_then}" "${tmp_now}" >/dev/null 2>&1; then
+            echo "::notice::pyproject.toml unchanged since ${SHA}."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+            echo "::warning::pyproject.toml changed since ${SHA}; will regenerate."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+        
+            echo "##[group]pyproject.toml diff (previous → current)"
+            diff -u \
+                --label "then:pyproject.toml@${SHA}" "${tmp_then}" \
+                --label "now:pyproject.toml@${GITHUB_SHA}" "${tmp_now}" \
+                || true
+            echo "##[endgroup]"
+        fi
+
+    - name: "Set 'DO_GENERATION' (env) and 'do_generation' (output) variables"
+      id: set_gen_flag
+      shell: bash
+      run: |
+        # step: "Set 'DO_GENERATION' (env) and 'do_generation' (output) variables"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        if [[ "${{ steps.recent.outputs.ran_recently }}" == "false" || \
+              "${{ steps.pyproj_changed.outputs.changed }}" == "true" ]]; then
+          echo "DO_GENERATION=true"  >> "$GITHUB_ENV"
+          echo "do_generation=true"  >> "$GITHUB_OUTPUT"
+          echo "Proceeding with generation (no recent run or pyproject.toml changed)."
+        else
+          echo "DO_GENERATION=false" >> "$GITHUB_ENV"
+          echo "do_generation=false" >> "$GITHUB_OUTPUT"
+          echo "Skipping generation (recent run and 'pyproject.toml' unchanged)."
+        fi
+
+
+    ####################################################################################
+    # SKIP CASE: recent==true AND pyproj_changed==false → just link to the prior run
+    ####################################################################################
+
+    - name: "Show prior artifact info"
+      if: ${{ env.DO_GENERATION == 'false' }}
+      shell: bash
+      run: |
+        # step: "Show prior artifact info"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        run_url="https://github.com/${{ github.repository }}/actions/runs/${{ steps.find_artifact.outputs.run_id }}"
+        msg="Recent run detected and pyproject.toml unchanged — skipping generation. See $run_url"
+        echo "::notice::$msg"
+        echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+
+
+    ####################################################################################
+    # GENERATE CASE: recent==false OR pyproj_changed==true → produce logs + diffs
+    ####################################################################################
+
+    - uses: actions/checkout@v5
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
+      with:
+        ref: ${{ github.sha }}  # lock to triggered commit (stable input for analysis)
+        fetch-depth: 0  # setuptools-scm needs to access git tags
+
+    - name: "Check if old files need to be removed"
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
+      shell: bash
+      run: |
+        # step: "Check if old files need to be removed"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         if find . -name "dependencies*.log" -type f | grep -q .; then
             echo "::error::dependencies*.log must be manually deleted -- v3 doesn't use these files"
             exit 1
         fi
-      shell: bash
 
-    - name: Set shared env
+    - name: "Set shared env"
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
+      shell: bash
       run: |
-        # step: Set shared env
+        # step: "Set shared env"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        
+
         STORE_PYDL_FILES_HERE="/tmp/py-dep-logs"
-        mkdir -p $STORE_PYDL_FILES_HERE
+        mkdir -p "$STORE_PYDL_FILES_HERE"
         echo "STORE_PYDL_FILES_HERE=$STORE_PYDL_FILES_HERE" >> "$GITHUB_ENV"
-        
+
         PYDL_FNAME_PREFIX="py-dependencies"
         echo "PYDL_FNAME_PREFIX=$PYDL_FNAME_PREFIX" >> "$GITHUB_ENV"
+
+    - name: "Figure Project's Max Py Version"
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       shell: bash
-
-
-    - name: Figure Project's Max Py Version
       run: |
-        # step: Figure Project's Max Py Version
+        # step: "Figure Project's Max Py Version"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
         echo "##[group]installs"
@@ -47,98 +226,83 @@ runs:
         . action_venv/bin/activate
         pip3 install wipac-dev-tools[semver]
         echo "##[endgroup]"
-        
-        MAX_PY=$(python -c "
-        from wipac_dev_tools import semver_parser_tools
 
-        top_python = semver_parser_tools.get_latest_py3_release()
-        all_matches = semver_parser_tools.list_all_majmin_versions(
-          major=top_python[0],
-          semver_range=semver_parser_tools.get_py_semver_range_for_project(),
-          max_minor=top_python[1],
-        )
-
-        print(f'{max(all_matches)[0]}.{max(all_matches)[1]}')
-        ")
+        MAX_PY=$(python "${{ github.action_path }}/action-scripts/compute_max_python.py")
         echo "detected project's max supported python: $MAX_PY"
-        
+
         rm -rf action_venv/
         echo "PACKAGE_MAX_PYTHON_VERSION=$MAX_PY" >> "$GITHUB_ENV"
-      shell: bash
 
-    - name: pip install reqs
+    - name: "pip install reqs"
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
+      shell: bash
       run: |
-        # step: pip install reqs
+        # step: "pip install reqs"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         echo "##[group]pip installs"
         sudo apt-get update
         pip3 install -r ${{ github.action_path }}/requirements.txt
         echo "##[endgroup]"
-      shell: bash
 
-    - name: Build dependencies.log (and commit)
+    - name: "Build pydep logs"
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       env:
-        ACTION_REPOSITORY: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
+        ACTION_REPOSITORY: ${{ github.action_repository }}
         GITHUB_ACTION_PATH: ${{ github.action_path }}
         DOCKER_TAG_TO_PYDL: "py-dep-this"
-        PODMAN_STATIC_VERSION: v5.6.1  # update as needed
+        PODMAN_STATIC_VERSION: v5.6.1
+      shell: bash
       run: |
-        # step: Build dependencies.log (and commit)
+        # step: "Build pydep logs"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        
+
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        
+
         export REPO_PATH=$(pwd)
         export DOCKERFILE_IGNORE_PATHS="${{ inputs.dockerfile_ignore_paths }}"
-        
-        # run script
+
         echo "##[group]generating dep logs"
-        /bin/bash $GITHUB_ACTION_PATH/action.sh
+        /bin/bash "$GITHUB_ACTION_PATH/action.sh"
         echo "##[endgroup]"
-        
-        ls $STORE_PYDL_FILES_HERE
-        
+
+        ls "$STORE_PYDL_FILES_HERE"
+
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
+    - name: "Fetch default branch"
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       shell: bash
-
-    - name: Fetch default branch
       run: |
-        # step: Fetch default branch
+        # step: "Fetch default branch"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        
+
         echo "##[group]fetching default branch"
-        
+
         default_branch="$(git remote show origin | awk '/HEAD branch/ {print $NF}')"
         echo "Default branch is $default_branch"
         git fetch origin "$default_branch":"refs/remotes/origin/$default_branch"
         echo "DEFAULT_BRANCH=$default_branch" >> "$GITHUB_ENV"
-        
-        echo "##[endgroup]"
-      shell: bash
 
-    - name: Dump diffs to console
+        echo "##[endgroup]"
+
+    - name: "Generate diffs into artifacts dir"
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
+      shell: bash
       run: |
-        # step: Dump diffs to console
+        # step: "Generate diffs into artifacts dir"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
         mkdir -p artifacts
 
-        shopt -s globstar nullglob
-        for file in $STORE_PYDL_FILES_HERE/*.log; do
+        shopt -s nullglob
+        for file in "$STORE_PYDL_FILES_HERE"/*.log; do
             fname=$(basename "$file")
             old_file=$(mktemp)
-
-            echo " "
-            echo " "
-            echo " "
-            echo "====> $file <$(printf '=%.0s' $(seq 1 $((72 - 7 - ${#file}))))"
-            echo " "
+            diff_file="artifacts/${fname%.log}.diff"
 
             cp "$file" "artifacts/$fname"
-            diff_file="artifacts/${fname%.log}.diff"
 
             python3 "${{ github.action_path }}/utils/get_old_pydl_file.py" \
                 "$fname" \
@@ -146,40 +310,39 @@ runs:
                 --repo "${{ github.repository }}" \
                 --dest "$old_file"
 
-            # does $old_file have contents? if so, diff it w/ the generated log file
-            if [ ! -s "$old_file" ]; then
-                # it's empty -> log must be new
+            sed -i ':a; /./!{$d;N;ba};' "$file" || true
+            sed -i ':a; /./!{$d;N;ba};' "$old_file" || true
+
+            if [[ ! -s "$old_file" ]]; then
                 echo "<new file>" > "$diff_file"
-                echo "::notice::file is new (no old version)"
-                cat "$file"
-                continue
+                echo "::notice::$fname is new (no previous version on $DEFAULT_BRANCH)"
             else
-                # not empty -> diff them
-                echo "::notice::diff: $file"
-                sed -i ':a; /./!{$d;N;ba};' "$old_file"  # remove trailing blank lines
-                sed -i ':a; /./!{$d;N;ba};' "$file"      # remove trailing blank lines
-                # NOTE: 'diff' exits w/ 0 (no change), 1 (changes), >1 (error)
                 fmt_opts=(
                   --old-line-format='- %L'
                   --new-line-format='+ %L'
                   --unchanged-line-format='  %L'
                 )
                 if ! diff "${fmt_opts[@]}" "$old_file" "$file" > "$diff_file"; then
-                    # also print with color, but don't save ANSI to file
-                    diff --color=always "${fmt_opts[@]}" "$old_file" "$file" || true
+                    echo "::notice::diff generated for $fname"
                 else
                     echo "<no changes>" > "$diff_file"
                     echo "::notice::$fname is unchanged"
                 fi
             fi
         done
-        echo " "
 
-      shell: bash
-
-    - name: Upload as artifacts
+    - name: "Upload as artifacts"
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: py-dependencies-logs
         path: artifacts/
         if-no-files-found: error
+
+    - name: "Dump artifact contents"
+      if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
+      shell: bash
+      run: |
+        # step: "Dump artifact contents"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+        /bin/bash "${{ github.action_path }}/action-scripts/dump_artifacts.sh" artifacts
