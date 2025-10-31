@@ -23,7 +23,7 @@ runs:
 
     - uses: actions/checkout@v5
       with:
-        ref: ${{ github.ref }}  # dont lock to sha (action needs to push)
+        ref: ${{ github.sha }}  # lock to triggered commit (stable input for analysis)
         fetch-depth: 0  # setuptools-scm needs to access git tags
 
 
@@ -199,7 +199,7 @@ runs:
     - uses: actions/checkout@v5
       if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       with:
-        ref: ${{ github.ref }}  # dont lock to sha (action needs to push)
+        ref: ${{ github.sha }}  # lock to triggered commit (stable input for analysis)
         fetch-depth: 0  # setuptools-scm needs to access git tags
 
     - name: "Check if old files need to be removed"
@@ -258,7 +258,7 @@ runs:
         pip3 install -r ${{ github.action_path }}/requirements.txt
         echo "##[endgroup]"
 
-    - name: "Build dependencies.log (and commit)"
+    - name: "Build pydep logs"
       if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       env:
         ACTION_REPOSITORY: ${{ github.action_repository }}
@@ -267,7 +267,7 @@ runs:
         PODMAN_STATIC_VERSION: v5.6.1
       shell: bash
       run: |
-        # step: "Build dependencies.log (and commit)"
+        # step: "Build pydep logs"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
 
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
