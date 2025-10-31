@@ -13,9 +13,7 @@ runs:
     - uses: actions/setup-python@v4
 
     ####################################################################################
-    # IF RECENT RUN DETECTED, USE PREVIOUS ARTIFACT
-    #
-    # NOTE: The recency check below is ONLY applied on NON-DEFAULT branches.
+    # IF RECENT RUN DETECTED, USE PREVIOUS ARTIFACT (applies only to non-default branches)
     ####################################################################################
 
     - uses: WIPACrepo/wipac-dev-recent-run-check-action@v1.0
@@ -62,8 +60,9 @@ runs:
         name: ${{ steps.find_artifact.outputs.artifact_name }}
         path: artifacts
 
+
     ####################################################################################
-    # NO RECENT RUN DETECTED — PROCEEDING TO GENERATE
+    # NO RECENT RUN DETECTED — PROCEEDING TO GENERATE (logs + diffs; no console dumps)
     ####################################################################################
 
     - name: "Check if old files need to be removed"
@@ -125,10 +124,10 @@ runs:
     - name: "Build dependencies.log (and commit)"
       if: ${{ steps.recent.outputs.ran_recently == 'false' }}
       env:
-        ACTION_REPOSITORY: ${{ github.action_repository }}  # https://github.com/github/docs/issues/25336#issuecomment-1736251764
+        ACTION_REPOSITORY: ${{ github.action_repository }}
         GITHUB_ACTION_PATH: ${{ github.action_path }}
         DOCKER_TAG_TO_PYDL: "py-dep-this"
-        PODMAN_STATIC_VERSION: v5.6.1  # update as needed
+        PODMAN_STATIC_VERSION: v5.6.1
       run: |
         # step: "Build dependencies.log (and commit)"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -138,12 +137,11 @@ runs:
         export REPO_PATH=$(pwd)
         export DOCKERFILE_IGNORE_PATHS="${{ inputs.dockerfile_ignore_paths }}"
 
-        # run script
         echo "##[group]generating dep logs"
         /bin/bash "$GITHUB_ACTION_PATH/action.sh"
         echo "##[endgroup]"
 
-        ls $STORE_PYDL_FILES_HERE
+        ls "$STORE_PYDL_FILES_HERE"
 
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
       shell: bash
@@ -164,16 +162,64 @@ runs:
         echo "##[endgroup]"
       shell: bash
 
-    ####################################################################################
-    # ALWAYS: UPLOAD, THEN DUMP ARTIFACT CONTENTS
-    ####################################################################################
+    - name: "Generate diffs into artifacts dir"
+      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        # step: "Generate diffs into artifacts dir"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        mkdir -p artifacts
+
+        shopt -s nullglob
+        for file in "$STORE_PYDL_FILES_HERE"/*.log; do
+            fname=$(basename "$file")
+            old_file=$(mktemp)
+            diff_file="artifacts/${fname%.log}.diff"
+
+            cp "$file" "artifacts/$fname"
+
+            python3 "${{ github.action_path }}/utils/get_old_pydl_file.py" \
+                "$fname" \
+                --branch "$DEFAULT_BRANCH" \
+                --repo "${{ github.repository }}" \
+                --dest "$old_file"
+
+            sed -i ':a; /./!{$d;N;ba};' "$file" || true
+            sed -i ':a; /./!{$d;N;ba};' "$old_file" || true
+
+            if [[ ! -s "$old_file" ]]; then
+                echo "<new file>" > "$diff_file"
+                echo "::notice::$fname is new (no previous version on $DEFAULT_BRANCH)"
+            else
+                fmt_opts=(
+                  --old-line-format='- %L'
+                  --new-line-format='+ %L'
+                  --unchanged-line-format='  %L'
+                )
+                if ! diff "${fmt_opts[@]}" "$old_file" "$file" > "$diff_file"; then
+                    echo "::notice::diff generated for $fname"
+                else
+                    echo "<no changes>" > "$diff_file"
+                    echo "::notice::$fname is unchanged"
+                fi
+            fi
+        done
+      shell: bash
 
     - name: "Upload as artifacts"
+      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
       uses: actions/upload-artifact@v4
       with:
         name: py-dependencies-logs
         path: artifacts/
         if-no-files-found: error
+
+
+    ####################################################################################
+    # COMMON FINAL STEP: DUMP ARTIFACTS DIR
+    ####################################################################################
 
     - name: "Dump artifact contents"
       run: |
