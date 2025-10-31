@@ -13,7 +13,7 @@ inputs:
 
 outputs:
   do_generation:
-    description: "true to generate; false to reuse prior"
+    description: "true to generate; false to reference prior"
     value: ${{ steps.set_gen_flag.outputs.do_generation }}
 
 runs:
@@ -128,7 +128,7 @@ runs:
         # Compare and emit outputs
         ########################################################################
         if diff -q "${tmp_then}" "${tmp_now}" >/dev/null 2>&1; then
-            echo "::notice::pyproject.toml unchanged since ${SHA}; safe to reuse."
+            echo "::notice::pyproject.toml unchanged since ${SHA}."
             echo "changed=false" >> "$GITHUB_OUTPUT"
         else
             echo "::warning::pyproject.toml changed since ${SHA}; will regenerate."
@@ -157,7 +157,7 @@ runs:
         else
           echo "DO_GENERATION=false" >> "$GITHUB_ENV"
           echo "do_generation=false" >> "$GITHUB_OUTPUT"
-          echo "Reusing previous run (recent and unchanged)."
+          echo "Skipping generation (recent run and 'pyproject.toml' unchanged)."
         fi
 
 
