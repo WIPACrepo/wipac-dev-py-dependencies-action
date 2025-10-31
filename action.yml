@@ -174,22 +174,12 @@ runs:
 
         run_url="https://github.com/${{ github.repository }}/actions/runs/${{ steps.find_artifact.outputs.run_id }}"
 
-        # Build once; print to console and append to GHA summary verbatim
-        text="$(
-          cat <<EOF
-          ::notice::Recent run detected and pyproject.toml unchanged.
-          ::notice::Latest prior artifact: '${{ steps.find_artifact.outputs.artifact_name }}'
-          ::notice::From run ID: ${{ steps.find_artifact.outputs.run_id }}
-          ::notice::View in GitHub Actions:
-          ${run_url}
-          EOF
-        )"
-        
-        # Dump to console
-        printf "%s\n" "$text"
-        
-        # Forward the exact same text to the job summary
-        printf "%s\n" "$text" >> "$GITHUB_STEP_SUMMARY"
+        {
+            printf '%s\n' "::notice::Recent run detected and pyproject.toml unchanged — see $run_url."
+            printf '%s\n' 'Latest prior artifact: '"'"'${{ steps.find_artifact.outputs.artifact_name }}'"'"''
+            printf '%s\n' 'From run ID: ${{ steps.find_artifact.outputs.run_id }}'
+            printf '%s\n' 'View in GitHub Actions:'
+        } | tee -a "$GITHUB_STEP_SUMMARY"
 
 
     ####################################################################################
