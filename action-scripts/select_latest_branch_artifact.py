@@ -19,16 +19,9 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Path to artifacts.json from GitHub API.",
     )
+    ap.add_argument("--branch", required=True, help="Branch name to filter on.")
     ap.add_argument(
-        "--branch",
-        required=True,
-        help="Branch name to filter on.",
-    )
-    ap.add_argument(
-        "--exclude-run-id",
-        type=int,
-        required=True,
-        help="Workflow run ID to exclude.",
+        "--exclude-run-id", type=int, required=True, help="Workflow run ID to exclude."
     )
     return ap.parse_args()
 
@@ -37,7 +30,6 @@ def _created_at(artifact: dict[str, Any]) -> datetime:
     ts = artifact.get("created_at")
     if not isinstance(ts, str):
         return datetime.min.replace(tzinfo=timezone.utc)
-    # GitHub gives ISO8601 with 'Z'
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
 
@@ -84,20 +76,22 @@ def main() -> int:
         return 1
 
     latest = max(artifacts, key=_created_at)
-    latest_wr = latest.get("workflow_run") or {}
-    latest_run_id = latest_wr.get("id")
+    wr = latest.get("workflow_run") or {}
+    run_id = wr.get("id")
+    head_sha = wr.get("head_sha")
 
     print(
         f"::notice::Using artifact id={latest.get('id')} "
-        f"(run {latest_run_id}) "
-        f"created_at={latest.get('created_at')}"
+        f"(run {run_id}) created_at={latest.get('created_at')} head_sha={head_sha}"
     )
 
-    outputs = [
-        f"artifact_name={latest.get('name')}\n",
-        f"run_id={latest_run_id}\n",
-    ]
-    _write_output(outputs)
+    _write_output(
+        [
+            f"artifact_name={latest.get('name')}\n",
+            f"run_id={run_id}\n",
+            f"head_sha={head_sha}\n",
+        ]
+    )
     return 0
 
 

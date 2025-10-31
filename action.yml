@@ -14,12 +14,12 @@ runs:
 
     ####################################################################################
     # PREFLIGHT CHECKLIST:
-    #   1. WAS A RECENT RUN DETECTED? (applies only to non-default branches)
-    #      * no  -> generate files
-    #      * yes -> go to #2
-    #   2. DID pyproject.toml CHANGE SINCE THAT RECENT RUN?
-    #      * no  -> link to previous run
-    #      * yes -> generate files
+    #   1) Was a recent run detected (non-default branches only)?
+    #      - no  -> generate files
+    #      - yes -> go to (2)
+    #   2) Did pyproject.toml change since that recent run?
+    #      - no  -> link to previous run (no generation)
+    #      - yes -> generate files
     ####################################################################################
 
     - uses: WIPACrepo/wipac-dev-recent-run-check-action@v1.0
@@ -27,12 +27,41 @@ runs:
       with:
         window-seconds: 3600
         always-false-on-default-branch: true
+        scope: job
 
+    - name: "Find latest prior artifact on this branch"
+      if: ${{ steps.recent.outputs.ran_recently == 'true' }}
+      id: find_artifact
+      env:
+        GH_TOKEN: ${{ github.token }}
+        BRANCH: ${{ github.ref_name }}
+        RUN_ID: ${{ github.run_id }}
+      shell: bash
+      run: |
+        # step: "Find latest prior artifact on this branch"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+        REPO="${{ github.repository }}"
+
+        echo "##[group]fetching artifacts list"
+        curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
+             -H "Accept: application/vnd.github+json" \
+             "https://api.github.com/repos/${REPO}/actions/artifacts?name=py-dependencies-logs&per_page=100" \
+             > artifacts-response.json
+        echo "##[endgroup]"
+
+        python "${{ github.action_path }}/action-scripts/select_latest_branch_artifact.py" \
+          --artifacts-json artifacts-response.json \
+          --branch "$BRANCH" \
+          --exclude-run-id "$RUN_ID"
+
+    # Compare pyproject.toml between current tree and the commit that produced that artifact
     - name: "Check pyproject.toml against artifact run"
       if: ${{ steps.recent.outputs.ran_recently == 'true' }}
       id: pyproj_changed
       env:
         SHA: ${{ steps.find_artifact.outputs.head_sha }}
+      shell: bash
       run: |
         # step: "Check pyproject.toml against artifact run"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -43,10 +72,8 @@ runs:
             exit 0
         fi
 
-        # ensure we have that commit locally
+        # Ensure we can read that commit
         git fetch --no-tags --depth=1 origin "${SHA}" || true
-
-        # If pyproject.toml doesn't exist in either tree, treat as 'changed' to be safe
         if ! git cat-file -e "${SHA}^{tree}"; then
             echo "::warning::Cannot read tree for ${SHA}; forcing regenerate."
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -68,67 +95,32 @@ runs:
             echo "::warning::pyproject.toml presence differs; will regenerate."
             echo "changed=true" >> "$GITHUB_OUTPUT"
         fi
-      shell: bash
+
 
     ####################################################################################
-    # IF RECENT RUN DETECTED, USE PREVIOUS ARTIFACT (applies only to non-default branches)
+    # REUSE PATH: recent==true AND pyproj_changed==false → just link to the prior run
     ####################################################################################
 
-    - if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
-      run: echo "Recent run detected — reusing the last artifact for this branch."
+    - name: "Reuse: show prior artifact info"
+      if: ${{ steps.recent.outputs.ran_recently == 'true' && steps.pyproj_changed.outputs.changed == 'false' }}
       shell: bash
-
-    - name: "Find latest prior artifact on this branch"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
-      id: find_artifact
-      env:
-        GH_TOKEN: ${{ github.token }}
-        BRANCH: ${{ github.ref_name }}
-        RUN_ID: ${{ github.run_id }}
       run: |
-        # step: "Find latest prior artifact on this branch"
+        # step: "Reuse: show prior artifact info"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        
-        REPO="${{ github.repository }}"
-        
-        echo "##[group]fetching artifacts list"
-        curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
-             -H "Accept: application/vnd.github+json" \
-             "https://api.github.com/repos/${REPO}/actions/artifacts?name=py-dependencies-logs&per_page=100" \
-             > artifacts-response.json
-        echo "##[endgroup]"
-        
-        python "${{ github.action_path }}/action-scripts/select_latest_branch_artifact.py" \
-          --artifacts-json artifacts-response.json \
-          --branch "$BRANCH" \
-          --exclude-run-id "$RUN_ID"
-      shell: bash
-
-    - name: "Show selected artifact"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
-      run: |
-        # step: "Show selected artifact"
-        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-        echo "artifact_name=${{ steps.find_artifact.outputs.artifact_name }}"
-        echo "from run_id=${{ steps.find_artifact.outputs.run_id }}"
-      shell: bash
-
-    - name: "Download prior artifact"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ steps.find_artifact.outputs.artifact_name }}
-        path: artifacts
-        run-id: ${{ steps.find_artifact.outputs.run_id }}
-        github-token: ${{ github.token }}
+        echo "::notice::Recent run detected and pyproject.toml unchanged."
+        echo "::notice::Latest prior artifact: '${{ steps.find_artifact.outputs.artifact_name }}'"
+        echo "::notice::From run ID: ${{ steps.find_artifact.outputs.run_id }}"
+        echo "::notice::View in GitHub Actions:"
+        echo "https://github.com/${{ github.repository }}/actions/runs/${{ steps.find_artifact.outputs.run_id }}"
 
 
     ####################################################################################
-    # NO RECENT RUN DETECTED — PROCEEDING TO GENERATE (logs + diffs; no console dumps)
+    # GENERATE PATH: recent==false OR pyproj_changed==true → produce logs + diffs
     ####################################################################################
 
     - name: "Check if old files need to be removed"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      shell: bash
       run: |
         # step: "Check if old files need to be removed"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -136,10 +128,10 @@ runs:
             echo "::error::dependencies*.log must be manually deleted -- v3 doesn't use these files"
             exit 1
         fi
-      shell: bash
 
     - name: "Set shared env"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      shell: bash
       run: |
         # step: "Set shared env"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -150,10 +142,10 @@ runs:
 
         PYDL_FNAME_PREFIX="py-dependencies"
         echo "PYDL_FNAME_PREFIX=$PYDL_FNAME_PREFIX" >> "$GITHUB_ENV"
-      shell: bash
 
     - name: "Figure Project's Max Py Version"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      shell: bash
       run: |
         # step: "Figure Project's Max Py Version"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -170,10 +162,10 @@ runs:
 
         rm -rf action_venv/
         echo "PACKAGE_MAX_PYTHON_VERSION=$MAX_PY" >> "$GITHUB_ENV"
-      shell: bash
 
     - name: "pip install reqs"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      shell: bash
       run: |
         # step: "pip install reqs"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -181,15 +173,15 @@ runs:
         sudo apt-get update
         pip3 install -r ${{ github.action_path }}/requirements.txt
         echo "##[endgroup]"
-      shell: bash
 
     - name: "Build dependencies.log (and commit)"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
       env:
         ACTION_REPOSITORY: ${{ github.action_repository }}
         GITHUB_ACTION_PATH: ${{ github.action_path }}
         DOCKER_TAG_TO_PYDL: "py-dep-this"
         PODMAN_STATIC_VERSION: v5.6.1
+      shell: bash
       run: |
         # step: "Build dependencies.log (and commit)"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -206,10 +198,10 @@ runs:
         ls "$STORE_PYDL_FILES_HERE"
 
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-      shell: bash
 
     - name: "Fetch default branch"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      shell: bash
       run: |
         # step: "Fetch default branch"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -222,12 +214,12 @@ runs:
         echo "DEFAULT_BRANCH=$default_branch" >> "$GITHUB_ENV"
 
         echo "##[endgroup]"
-      shell: bash
 
     - name: "Generate diffs into artifacts dir"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
+      shell: bash
       run: |
         # step: "Generate diffs into artifacts dir"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
@@ -268,24 +260,19 @@ runs:
                 fi
             fi
         done
-      shell: bash
 
     - name: "Upload as artifacts"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' }}
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: py-dependencies-logs
         path: artifacts/
         if-no-files-found: error
 
-
-    ####################################################################################
-    # COMMON FINAL STEP: DUMP ARTIFACTS DIR
-    ####################################################################################
-
     - name: "Dump artifact contents"
+      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      shell: bash
       run: |
         # step: "Dump artifact contents"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
         /bin/bash "${{ github.action_path }}/action-scripts/dump_artifacts.sh" artifacts
-      shell: bash
