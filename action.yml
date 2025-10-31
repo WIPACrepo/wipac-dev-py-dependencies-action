@@ -133,13 +133,28 @@ runs:
             echo "##[endgroup]"
         fi
 
+    - name: "Set DO_GENERATE variable"
+      shell: bash
+      run: |
+        # step: "Set DO_GENERATE variable"
+        set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
+
+          if [[ "${{ steps.recent.outputs.ran_recently }}" == "false" || \
+                "${{ steps.pyproj_changed.outputs.changed }}" == "true" ]]; then
+              echo "DO_GENERATE=true" >> "$GITHUB_ENV"
+              echo "::notice::Proceeding with generation (no recent run or pyproject.toml changed)."
+          else
+              echo "DO_GENERATE=false" >> "$GITHUB_ENV"
+              echo "::notice::Reusing previous run (recent and unchanged)."
+          fi
+
 
     ####################################################################################
     # SKIP CASE: recent==true AND pyproj_changed==false → just link to the prior run
     ####################################################################################
 
     - name: "Show prior artifact info"
-      if: ${{ steps.recent.outputs.ran_recently == 'true' && steps.pyproj_changed.outputs.changed == 'false' }}
+      if: ${{ env.DO_GENERATE == 'false' }}
       shell: bash
       run: |
         # step: "Show prior artifact info"
@@ -170,13 +185,13 @@ runs:
     ####################################################################################
 
     - uses: actions/checkout@v5
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       with:
         ref: ${{ github.ref }}  # dont lock to sha (action needs to push)
         fetch-depth: 0  # setuptools-scm needs to access git tags
 
     - name: "Check if old files need to be removed"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       shell: bash
       run: |
         # step: "Check if old files need to be removed"
@@ -187,7 +202,7 @@ runs:
         fi
 
     - name: "Set shared env"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       shell: bash
       run: |
         # step: "Set shared env"
@@ -201,7 +216,7 @@ runs:
         echo "PYDL_FNAME_PREFIX=$PYDL_FNAME_PREFIX" >> "$GITHUB_ENV"
 
     - name: "Figure Project's Max Py Version"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       shell: bash
       run: |
         # step: "Figure Project's Max Py Version"
@@ -221,7 +236,7 @@ runs:
         echo "PACKAGE_MAX_PYTHON_VERSION=$MAX_PY" >> "$GITHUB_ENV"
 
     - name: "pip install reqs"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       shell: bash
       run: |
         # step: "pip install reqs"
@@ -232,7 +247,7 @@ runs:
         echo "##[endgroup]"
 
     - name: "Build dependencies.log (and commit)"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       env:
         ACTION_REPOSITORY: ${{ github.action_repository }}
         GITHUB_ACTION_PATH: ${{ github.action_path }}
@@ -257,7 +272,7 @@ runs:
         echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
     - name: "Fetch default branch"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       shell: bash
       run: |
         # step: "Fetch default branch"
@@ -273,7 +288,7 @@ runs:
         echo "##[endgroup]"
 
     - name: "Generate diffs into artifacts dir"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
       shell: bash
@@ -319,7 +334,7 @@ runs:
         done
 
     - name: "Upload as artifacts"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: py-dependencies-logs
@@ -327,7 +342,7 @@ runs:
         if-no-files-found: error
 
     - name: "Dump artifact contents"
-      if: ${{ steps.recent.outputs.ran_recently == 'false' || steps.pyproj_changed.outputs.changed == 'true' }}
+      if: ${{ env.DO_GENERATE == 'true' }}
       shell: bash
       run: |
         # step: "Dump artifact contents"
