@@ -118,16 +118,15 @@ runs:
         ########################################################################
         # Compare and emit outputs
         ########################################################################
-        if diff --quiet --strip-trailing-cr "${tmp_then}" "${tmp_now}"; then
+        if diff -q "${tmp_then}" "${tmp_now}" >/dev/null 2>&1; then
             echo "::notice::pyproject.toml unchanged since ${SHA}; safe to reuse."
             echo "changed=false" >> "$GITHUB_OUTPUT"
         else
             echo "::warning::pyproject.toml changed since ${SHA}; will regenerate."
             echo "changed=true" >> "$GITHUB_OUTPUT"
-
+        
             echo "##[group]pyproject.toml diff (previous → current)"
-            diff \
-                --unified=3 \
+            diff -u \
                 --label "then:pyproject.toml@${SHA}" "${tmp_then}" \
                 --label "now:pyproject.toml@${GITHUB_SHA}" "${tmp_now}" \
                 || true
