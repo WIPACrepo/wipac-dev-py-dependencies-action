@@ -5,10 +5,6 @@ set -euo pipefail
 # Dump artifact contents to console
 ####################################################################################
 
-echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-
-echo "##[group]dumping artifact contents"
-
 ARTIFACTS_DIR="${1:-artifacts}"
 
 if [[ ! -d $ARTIFACTS_DIR ]]; then
@@ -30,5 +26,3 @@ for file in "$ARTIFACTS_DIR"/*; do
         echo "(empty file)"
     fi
 done
-
-echo "##[endgroup]"
