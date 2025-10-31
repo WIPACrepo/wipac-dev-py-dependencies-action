@@ -36,21 +36,20 @@ runs:
       run: |
         # step: "Find latest prior artifact on this branch"
         set -euo pipefail; echo "now: $(date -u +"%Y-%m-%dT%H:%M:%S.%3N")"
-
+        
         REPO="${{ github.repository }}"
-
+        
         echo "##[group]fetching artifacts list"
         curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
              -H "Accept: application/vnd.github+json" \
              "https://api.github.com/repos/${REPO}/actions/artifacts?name=py-dependencies-logs&per_page=100" \
-             > artifacts.json
+             > artifacts-response.json
         echo "##[endgroup]"
-
+        
         python "${{ github.action_path }}/action-scripts/select_latest_branch_artifact.py" \
-          --artifacts-json artifacts.json \
+          --artifacts-json artifacts-response.json \
           --branch "$BRANCH" \
-          --exclude-run-id "$RUN_ID" \
-          --github-output "$GITHUB_OUTPUT"
+          --exclude-run-id "$RUN_ID"
       shell: bash
 
     - name: "Download prior artifact"
@@ -59,6 +58,8 @@ runs:
       with:
         name: ${{ steps.find_artifact.outputs.artifact_name }}
         path: artifacts
+        repository: ${{ github.repository }}
+        run-id: ${{ steps.find_artifact.outputs.run_id }}
 
 
     ####################################################################################

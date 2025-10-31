@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""
-Select the newest non-expired artifact named 'py-dependencies-logs' for a given branch,
-excluding a specific workflow run ID. Writes 'artifact_name=...' to $GITHUB_OUTPUT.
-"""
+"""Select the newest non-expired 'py-dependencies-logs' artifact for a branch (excluding a run) and write outputs."""
+
+from __future__ import annotations
 
 import argparse
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -31,16 +30,27 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Workflow run ID to exclude.",
     )
-    ap.add_argument(
-        "--github-output",
-        default=os.environ.get("GITHUB_OUTPUT", ""),
-        help="Path to $GITHUB_OUTPUT.",
-    )
     return ap.parse_args()
 
 
 def _created_at(artifact: dict[str, Any]) -> datetime:
-    return datetime.fromisoformat(artifact["created_at"].replace("Z", "+00:00"))
+    ts = artifact.get("created_at")
+    if not isinstance(ts, str):
+        return datetime.min.replace(tzinfo=timezone.utc)
+    # GitHub gives ISO8601 with 'Z'
+    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
+def _write_output(lines: list[str]) -> None:
+    out_path = os.environ.get("GITHUB_OUTPUT")
+    if not out_path:
+        print("::warning::GITHUB_OUTPUT not set; printing outputs instead:")
+        for ln in lines:
+            print(ln, end="")
+        return
+    with open(out_path, "a", encoding="utf-8") as f:
+        for ln in lines:
+            f.write(ln)
 
 
 def main() -> int:
@@ -53,7 +63,7 @@ def main() -> int:
         print(f"::error::Failed to read artifacts JSON: {e}")
         return 1
 
-    artifacts = []
+    artifacts: list[dict[str, Any]] = []
     for a in data.get("artifacts", []):
         if a.get("expired"):
             continue
@@ -74,20 +84,20 @@ def main() -> int:
         return 1
 
     latest = max(artifacts, key=_created_at)
+    latest_wr = latest.get("workflow_run") or {}
+    latest_run_id = latest_wr.get("id")
+
     print(
         f"::notice::Using artifact id={latest.get('id')} "
-        f"(run {latest.get('workflow_run', {}).get('id')}) "
+        f"(run {latest_run_id}) "
         f"created_at={latest.get('created_at')}"
     )
 
-    out_line = f"artifact_name={latest.get('name')}\n"
-    if not args.github_output:
-        print("::warning::GITHUB_OUTPUT not set; printing output instead:")
-        print(out_line, end="")
-    else:
-        with open(args.github_output, "a", encoding="utf-8") as out:
-            out.write(out_line)
-
+    outputs = [
+        f"artifact_name={latest.get('name')}\n",
+        f"run_id={latest_run_id}\n",
+    ]
+    _write_output(outputs)
     return 0
 
 
