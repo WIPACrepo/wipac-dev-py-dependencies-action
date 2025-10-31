@@ -14,12 +14,15 @@ runs:
 
     ####################################################################################
     # IF RECENT RUN DETECTED, USE PREVIOUS ARTIFACT
+    #
+    # NOTE: The recency check below is ONLY applied on NON-DEFAULT branches.
     ####################################################################################
 
     - uses: WIPACrepo/wipac-dev-recent-run-check-action@v1.0
       id: recent
       with:
         window-seconds: 3600
+        always-false-on-default-branch: true
 
     - if: ${{ steps.recent.outputs.ran_recently == 'true' }}
       run: echo "Recent run detected — reusing the last artifact for this branch."
