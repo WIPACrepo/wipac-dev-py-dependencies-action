@@ -65,7 +65,7 @@ def main() -> int:
 
     if not candidates:
         print(
-            "::error::No previous py-dependencies-logs artifact found on this branch.",
+            "::warning::No previous py-dependencies-logs artifact found on this branch.",
             file=sys.stderr,
         )
         return 1
