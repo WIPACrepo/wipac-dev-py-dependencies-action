@@ -59,7 +59,7 @@ runs:
         REPO="${{ github.repository }}"
 
         echo "##[group]fetching artifacts list"
-        
+
         # Try to curl list of artifacts
         if curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
                 -H "Accept: application/vnd.github+json" \
@@ -71,7 +71,7 @@ runs:
                                 --artifacts-json artifacts-response.json \
                                 --branch "$BRANCH" \
                                 --exclude-run-id "$RUN_ID"); then
-                # grab form json (stdout)
+                # grab from json (stdout)
                 artifact_name=$(jq -r '.artifact_name' <<<"$result_json")
                 run_id=$(jq -r '.run_id' <<<"$result_json")
                 head_sha=$(jq -r '.head_sha' <<<"$result_json")
@@ -87,7 +87,7 @@ runs:
             run_id=""
             head_sha=""
         fi
-        
+
         # Write values to GITHUB_OUTPUT 
         echo "##[endgroup]"
         {
