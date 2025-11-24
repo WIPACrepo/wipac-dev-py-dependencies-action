@@ -21,7 +21,7 @@ runs:
   steps:
     - uses: actions/setup-python@v6
 
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         ref: ${{ github.sha }}  # lock to triggered commit (stable input for analysis)
         fetch-depth: 0  # setuptools-scm needs to access git tags
@@ -208,7 +208,7 @@ runs:
     # GENERATE CASE: recent==false OR pyproj_changed==true → produce logs + diffs
     ####################################################################################
 
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       if: ${{ env.DO_GENERATION == 'true' && inputs.only_precheck != 'true' }}
       with:
         ref: ${{ github.sha }}  # lock to triggered commit (stable input for analysis)
